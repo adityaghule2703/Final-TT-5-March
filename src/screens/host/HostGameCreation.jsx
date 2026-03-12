@@ -1,4 +1,3 @@
-// HostGameCreation.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
@@ -16,6 +15,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
@@ -319,6 +319,99 @@ const HostGameCreation = ({ navigation, route }) => {
     setEditingReward(null);
   }, []);
 
+  // Updated function with exact same icons as UserGamePatterns and HostGamePatterns
+  const getPatternIcon = useCallback((pattern) => {
+    const patternName = pattern.pattern_name.toLowerCase();
+    
+    switch (patternName) {
+      case 'top_line':
+        return 'arrow-up'; // ↑ (Ionicons)
+      
+      case 'middle_line':
+        return 'arrow-left-right'; // ↔ (MaterialCommunityIcons)
+      
+      case 'bottom_line':
+        return 'arrow-down'; // ↓ (Ionicons)
+      
+      case 'breakfast':
+        return 'cafe'; // ☕ (Ionicons)
+      
+      case 'lunch':
+        return 'food'; // 🍔 (MaterialCommunityIcons)
+      
+      case 'dinner':
+        return 'restaurant'; // 🍽️ (Ionicons)
+      
+      case 'four_corners':
+        return 'apps'; // ▦ (MaterialCommunityIcons)
+      
+      case 'bamboo':
+        return 'leaf'; // 🍃 (MaterialCommunityIcons)
+      
+      case 'early_five':
+        return 'numeric-5-circle'; // ⑤ (MaterialCommunityIcons)
+      
+      case 'non_claimers':
+        return 'close-circle'; // ⭕ (Ionicons)
+      
+      case 'full_house':
+        return 'home'; // 🏠 (Ionicons)
+      
+      default:
+        // Default based on logic type
+        switch (pattern.logic_type) {
+          case 'position_based':
+            return 'grid';
+          case 'count_based':
+            return 'counter';
+          case 'all_numbers':
+            return 'check-all';
+          case 'row_complete':
+            return 'format-line-weight';
+          case 'number_based':
+            return 'calculator';
+          case 'number_range':
+            return 'filter';
+          default:
+            return 'ticket-confirmation';
+        }
+    }
+  }, []);
+
+  // Helper function to render the appropriate icon
+  const renderPatternIcon = useCallback((iconName, size, color) => {
+    // Icons that should use Ionicons
+    const ioniconsIcons = [
+      'arrow-down', 'arrow-up', 'cafe', 'restaurant', 'home', 
+      'close-circle', 'calculator', 'grid'
+    ];
+    
+    if (ioniconsIcons.includes(iconName)) {
+      return <Ionicons name={iconName} size={size} color={color} />;
+    } else {
+      return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+    }
+  }, []);
+
+  const getPatternColor = useCallback((logicType) => {
+    switch (logicType) {
+      case 'position_based':
+        return '#FF6B6B';
+      case 'count_based':
+        return '#FF9800';
+      case 'all_numbers':
+        return '#4CAF50';
+      case 'row_complete':
+        return '#9C27B0';
+      case 'number_based':
+        return '#2196F3';
+      case 'number_range':
+        return '#607D8B';
+      default:
+        return '#666';
+    }
+  }, []);
+
   // Toast Functions
   const showToast = (message, type = 'success') => {
     setToast({ visible: true, message, type });
@@ -353,47 +446,10 @@ const HostGameCreation = ({ navigation, route }) => {
     );
   };
 
-  // Get Ionicons for pattern types
-  const getPatternIcon = useCallback((logicType) => {
-    switch (logicType) {
-      case 'position_based':
-        return 'locate';
-      case 'count_based':
-        return 'stats-chart';
-      case 'all_numbers':
-        return 'star';
-      case 'row_complete':
-        return 'grid';
-      case 'number_based':
-        return 'dice';
-      case 'number_range':
-        return 'trending-up';
-      default:
-        return 'game-controller';
-    }
-  }, []);
-
-  const getPatternColor = useCallback((logicType) => {
-    switch (logicType) {
-      case 'position_based':
-        return '#FF6B6B';
-      case 'count_based':
-        return '#FF9800';
-      case 'all_numbers':
-        return '#4CAF50';
-      case 'row_complete':
-        return '#9C27B0';
-      case 'number_based':
-        return '#2196F3';
-      case 'number_range':
-        return '#607D8B';
-      default:
-        return '#666';
-    }
-  }, []);
-
   const renderPatternItem = useCallback(({ item }) => {
     const isSelected = selectedPatterns.some(p => p.id === item.id);
+    const iconName = getPatternIcon(item);
+    const color = getPatternColor(item.logic_type);
     
     return (
       <TouchableOpacity
@@ -405,13 +461,9 @@ const HostGameCreation = ({ navigation, route }) => {
           <View style={styles.patternCardHeader}>
             <View style={[
               styles.patternTypeBadge,
-              { backgroundColor: getPatternColor(item.logic_type) + '20' }
+              { backgroundColor: color + '20' }
             ]}>
-              <Ionicons 
-                name={getPatternIcon(item.logic_type)} 
-                size={14} 
-                color={getPatternColor(item.logic_type)} 
-              />
+              {renderPatternIcon(iconName, 14, color)}
             </View>
             {isSelected ? (
               <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
@@ -429,7 +481,7 @@ const HostGameCreation = ({ navigation, route }) => {
         </View>
       </TouchableOpacity>
     );
-  }, [selectedPatterns, handlePatternSelect]);
+  }, [selectedPatterns, handlePatternSelect, getPatternIcon, getPatternColor, renderPatternIcon]);
 
   // Render Step Content
   const renderStepContent = () => {
@@ -756,6 +808,8 @@ const HostGameCreation = ({ navigation, route }) => {
                   {selectedPatterns.map((pattern) => {
                     const reward = patternRewards.find(r => r.pattern_id === pattern.id);
                     const isEditing = editingReward === pattern.id;
+                    const iconName = getPatternIcon(pattern);
+                    const color = getPatternColor(pattern.logic_type);
                     
                     return (
                       <View key={pattern.id} style={styles.selectedPatternCard}>
@@ -763,13 +817,9 @@ const HostGameCreation = ({ navigation, route }) => {
                           <View style={styles.patternInfo}>
                             <View style={[
                               styles.patternIcon,
-                              { backgroundColor: getPatternColor(pattern.logic_type) + '20' }
+                              { backgroundColor: color + '20' }
                             ]}>
-                              <Ionicons 
-                                name={getPatternIcon(pattern.logic_type)} 
-                                size={16} 
-                                color={getPatternColor(pattern.logic_type)} 
-                              />
+                              {renderPatternIcon(iconName, 16, color)}
                             </View>
                             <View style={styles.patternText}>
                               <Text style={styles.selectedPatternName} numberOfLines={1}>
@@ -899,7 +949,7 @@ const HostGameCreation = ({ navigation, route }) => {
           </>
         ) : (
           <View style={styles.emptyPatterns}>
-            <Ionicons name="grid-outline" size={50} color="#CCC" />
+            <MaterialCommunityIcons name="grid-outline" size={50} color="#CCC" />
             <Text style={styles.emptyPatternsText}>No patterns available</Text>
             <Text style={styles.emptyPatternsSubtext}>
               Please check your connection or contact support

@@ -17,6 +17,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -726,27 +727,82 @@ const HostGameEdit = ({ navigation, route }) => {
     );
   };
 
-  // Get Ionicons for pattern types
-  const getPatternIcon = (logicType) => {
-    if (!logicType) return 'game-controller';
+  // Updated function with exact same icons as UserGamePatterns, HostGamePatterns, and HostGameCreation
+  const getPatternIcon = useCallback((pattern) => {
+    if (!pattern) return 'ticket-confirmation';
     
-    switch (logicType.toLowerCase()) {
-      case 'position_based':
-        return 'locate';
-      case 'count_based':
-        return 'stats-chart';
-      case 'all_numbers':
-        return 'star';
-      case 'row_complete':
-        return 'grid';
-      case 'number_based':
-        return 'dice';
-      case 'number_range':
-        return 'trending-up';
+    const patternName = (pattern.pattern_name || pattern.name || '').toLowerCase();
+    
+    switch (patternName) {
+      case 'top_line':
+        return 'arrow-up'; // ↑ (Ionicons)
+      
+      case 'middle_line':
+        return 'arrow-left-right'; // ↔ (MaterialCommunityIcons)
+      
+      case 'bottom_line':
+        return 'arrow-down'; // ↓ (Ionicons)
+      
+      case 'breakfast':
+        return 'cafe'; // ☕ (Ionicons)
+      
+      case 'lunch':
+        return 'food'; // 🍔 (MaterialCommunityIcons)
+      
+      case 'dinner':
+        return 'restaurant'; // 🍽️ (Ionicons)
+      
+      case 'four_corners':
+        return 'apps'; // ▦ (MaterialCommunityIcons)
+      
+      case 'bamboo':
+        return 'leaf'; // 🍃 (MaterialCommunityIcons)
+      
+      case 'early_five':
+        return 'numeric-5-circle'; // ⑤ (MaterialCommunityIcons)
+      
+      case 'non_claimers':
+        return 'close-circle'; // ⭕ (Ionicons)
+      
+      case 'full_house':
+        return 'home'; // 🏠 (Ionicons)
+      
       default:
-        return 'game-controller';
+        // Default based on logic type
+        const logicType = (pattern.logic_type || '').toLowerCase();
+        switch (logicType) {
+          case 'position_based':
+            return 'grid';
+          case 'count_based':
+            return 'counter';
+          case 'all_numbers':
+            return 'check-all';
+          case 'row_complete':
+            return 'format-line-weight';
+          case 'number_based':
+            return 'calculator';
+          case 'number_range':
+            return 'filter';
+          default:
+            return 'ticket-confirmation';
+        }
     }
-  };
+  }, []);
+
+  // Helper function to render the appropriate icon
+  const renderPatternIcon = useCallback((iconName, size, color) => {
+    // Icons that should use Ionicons
+    const ioniconsIcons = [
+      'arrow-down', 'arrow-up', 'cafe', 'restaurant', 'home', 
+      'close-circle', 'calculator', 'grid'
+    ];
+    
+    if (ioniconsIcons.includes(iconName)) {
+      return <Ionicons name={iconName} size={size} color={color} />;
+    } else {
+      return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+    }
+  }, []);
 
   const getPatternColor = (logicType) => {
     if (!logicType) return '#666';
@@ -773,6 +829,8 @@ const HostGameEdit = ({ navigation, route }) => {
     const patternId = item.id;
     const reward = patternRewards.find(r => r.pattern_id === patternId);
     const isEditing = editingReward === patternId;
+    const iconName = getPatternIcon(item);
+    const color = getPatternColor(item.logic_type);
     
     return (
       <View style={styles.patternItem}>
@@ -780,13 +838,9 @@ const HostGameEdit = ({ navigation, route }) => {
           <View style={styles.patternInfo}>
             <View style={[
               styles.patternIcon,
-              { backgroundColor: getPatternColor(item.logic_type) + '20' }
+              { backgroundColor: color + '20' }
             ]}>
-              <Ionicons 
-                name={getPatternIcon(item.logic_type)} 
-                size={16} 
-                color={getPatternColor(item.logic_type)} 
-              />
+              {renderPatternIcon(iconName, 16, color)}
             </View>
             <View style={styles.patternText}>
               <Text style={styles.patternName} numberOfLines={1}>
@@ -918,6 +972,8 @@ const HostGameEdit = ({ navigation, route }) => {
 
   const renderAvailablePatternItem = ({ item }) => {
     const isSelected = selectedNewPattern?.id === item.id;
+    const iconName = getPatternIcon(item);
+    const color = getPatternColor(item.logic_type);
     
     return (
       <TouchableOpacity
@@ -929,13 +985,9 @@ const HostGameEdit = ({ navigation, route }) => {
           <View style={styles.availablePatternHeader}>
             <View style={[
               styles.availablePatternIcon,
-              { backgroundColor: getPatternColor(item.logic_type) + '20' }
+              { backgroundColor: color + '20' }
             ]}>
-              <Ionicons 
-                name={getPatternIcon(item.logic_type)} 
-                size={14} 
-                color={getPatternColor(item.logic_type)} 
-              />
+              {renderPatternIcon(iconName, 14, color)}
             </View>
             {isSelected ? (
               <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
@@ -1265,7 +1317,7 @@ const HostGameEdit = ({ navigation, route }) => {
             </View>
           ) : (
             <View style={styles.noPatterns}>
-              <Ionicons name="grid-outline" size={40} color="#CCC" />
+              <MaterialCommunityIcons name="grid-outline" size={40} color="#CCC" />
               <Text style={styles.noPatternsText}>No patterns configured</Text>
               <Text style={styles.noPatternsSubtext}>
                 Add patterns to create winning conditions
@@ -1357,7 +1409,7 @@ const HostGameEdit = ({ navigation, route }) => {
                 />
               ) : (
                 <View style={styles.noAvailablePatterns}>
-                  <Ionicons name="grid-outline" size={40} color="#CCC" />
+                  <MaterialCommunityIcons name="grid-outline" size={40} color="#CCC" />
                   <Text style={styles.noAvailablePatternsText}>No available patterns</Text>
                   <Text style={styles.noAvailablePatternsSubtext}>
                     All patterns are already added to this game

@@ -21,9 +21,44 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
-const { width } = Dimensions.get("window");
-const TICKET_WIDTH = width - 80;
-const CELL_SIZE = (TICKET_WIDTH - 40) / 9;
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Updated colors to match TicketsScreen
+const PRIMARY_COLOR = "#4facfe"; // Main blue color
+const ACCENT_COLOR = "#ff9800"; // Orange accent
+const BACKGROUND_COLOR = "#f5f8ff"; // Light background
+const WHITE = "#FFFFFF";
+const TEXT_DARK = "#333333";
+const TEXT_LIGHT = "#777777";
+const BORDER_COLOR = "#EEEEEE";
+const CARD_BACKGROUND = "#FFFFFF";
+const SUCCESS_COLOR = "#4CAF50"; // Green for success states
+const ERROR_COLOR = "#E74C3C"; // Red for errors
+const WARNING_COLOR = "#FF9800"; // Orange for warnings
+const SECTION_BG = "#F8F9FA"; // Light background for sections
+const PRIZE_BG = "#F0F2F5"; // Background for prize items
+
+// Row colors for ticket grid
+const ROW_COLOR_1 = "#f0f8ff"; // Very light blue for even rows
+const ROW_COLOR_2 = "#e6f3ff"; // Slightly darker light blue for odd rows
+const FILLED_CELL_BG = "#62cff4"; // Light blue for filled cells
+const MARKED_CELL_BG = "#FF5252"; // Red for marked cells
+const EMPTY_CELL_BG = "transparent"; // Transparent for empty cells
+const CELL_BORDER_COLOR = PRIMARY_COLOR; // Blue border
+const NUMBER_COLOR = WHITE; // White numbers
+
+// Ticket parameters - REDUCED TICKET SIZE
+const NUM_COLUMNS = 9;
+const CELL_MARGIN = 2;
+const TICKET_PADDING = 4; // Keep padding minimal
+
+// Calculate ticket width to be 85% of screen width to ensure it fits
+const TICKET_CONTAINER_WIDTH = SCREEN_WIDTH * 0.85; // Use 85% of screen width
+
+// Calculate cell width based on ticket container width
+const CELL_WIDTH = Math.floor(
+  (TICKET_CONTAINER_WIDTH - (TICKET_PADDING * 2) - (CELL_MARGIN * 2 * NUM_COLUMNS)) / NUM_COLUMNS
+);
 
 const HostGameWinners = ({ navigation, route }) => {
   const { gameId, gameName } = route.params;
@@ -75,54 +110,57 @@ const HostGameWinners = ({ navigation, route }) => {
   };
 
   const renderTicketGrid = (ticketData) => {
+    // Process ticket data to ensure it's in the right format
+    const processedData = Array.isArray(ticketData) ? ticketData : [];
+    
     return (
-      <View style={styles.ticketGridContainer}>
-        {/* Column Numbers (1-9) */}
-        <View style={styles.columnNumbers}>
-          {Array.from({ length: 9 }).map((_, colIndex) => (
-            <View key={`col-${colIndex}`} style={styles.columnNumberCell}>
-              <Text style={styles.columnNumberText}>{colIndex + 1}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Ticket Rows */}
-        {ticketData.map((row, rowIndex) => (
-          <View key={`row-${rowIndex}`} style={styles.ticketRow}>
+      <View style={styles.ticket}>
+        {/* Ticket rows without column headers */}
+        {processedData.map((row, rowIndex) => (
+          <View 
+            key={`row-${rowIndex}`} 
+            style={[
+              styles.row,
+              { 
+                backgroundColor: rowIndex % 2 === 0 ? ROW_COLOR_1 : ROW_COLOR_2,
+              }
+            ]}
+          >
             {row.map((cell, colIndex) => {
-              const cellNumber = cell.number;
-              const isMarked = cell.is_marked;
-              const isEmpty = cellNumber === null;
+              const cellNumber = cell?.number;
+              const isMarked = cell?.is_marked;
+              const isEmpty = cellNumber === null || cellNumber === undefined;
               
               // Determine cell background color
               let cellBackgroundColor;
               if (isEmpty) {
-                cellBackgroundColor = "#CCCCCC"; // Gray for empty cells
+                cellBackgroundColor = EMPTY_CELL_BG;
               } else if (isMarked) {
-                cellBackgroundColor = "#FF5252"; // Red for marked cells
+                cellBackgroundColor = MARKED_CELL_BG;
               } else {
-                cellBackgroundColor = "#80CBC4"; // Medium turquoise for unmarked cells
+                cellBackgroundColor = FILLED_CELL_BG;
               }
               
               return (
                 <View
                   key={`cell-${rowIndex}-${colIndex}`}
                   style={[
-                    styles.ticketCell,
-                    { backgroundColor: cellBackgroundColor },
+                    styles.cell,
+                    { 
+                      width: CELL_WIDTH,
+                      height: CELL_WIDTH,
+                      margin: CELL_MARGIN,
+                      backgroundColor: cellBackgroundColor,
+                      borderColor: PRIMARY_COLOR,
+                    },
                     isEmpty && styles.emptyCell,
                     isMarked && styles.markedCell,
                   ]}
                 >
                   {!isEmpty && (
-                    <View style={styles.cellContent}>
-                      <Text style={[
-                        styles.cellNumber,
-                        { color: "#FFFFFF" },
-                      ]}>
-                        {cellNumber}
-                      </Text>
-                    </View>
+                    <Text style={styles.number}>
+                      {cellNumber}
+                    </Text>
                   )}
                 </View>
               );
@@ -140,8 +178,23 @@ const HostGameWinners = ({ navigation, route }) => {
         setSelectedWinner(item);
         setModalVisible(true);
       }}
+      activeOpacity={0.9}
     >
-      <View style={styles.winnerHeader}>
+      {/* Ticket number and status */}
+      <View style={styles.ticketHeader}>
+        <View style={styles.ticketNumberContainer}>
+          <Ionicons name="ticket-outline" size={14} color={PRIMARY_COLOR} />
+          <Text style={styles.ticketNo}>Ticket #{item.ticket_number}</Text>
+        </View>
+        
+        <View style={styles.winnerBadge}>
+          <Ionicons name="trophy" size={12} color="#FFD700" />
+          <Text style={styles.winnerBadgeText}>Winner</Text>
+        </View>
+      </View>
+
+      {/* Winner Info Row */}
+      <View style={styles.winnerInfoRow}>
         <View style={styles.winnerProfile}>
           {item.profile_image ? (
             <Image
@@ -150,49 +203,50 @@ const HostGameWinners = ({ navigation, route }) => {
             />
           ) : (
             <View style={styles.profileImagePlaceholder}>
-              <Ionicons name="person" size={24} color="#666" />
+              <Ionicons name="person" size={20} color={TEXT_LIGHT} />
             </View>
           )}
-          <View style={styles.winnerInfo}>
+          <View style={styles.winnerNameContainer}>
             <Text style={styles.winnerName}>{item.user_name}</Text>
             <Text style={styles.winnerUsername}>@{item.username}</Text>
           </View>
         </View>
-        <View style={styles.winnerBadge}>
-          <Ionicons name="trophy" size={16} color="#FFD700" />
+
+        <View style={styles.winnerAmountContainer}>
+          <Text style={styles.winnerAmountLabel}>Won</Text>
+          <Text style={styles.winnerAmount}>₹{item.winning_amount}</Text>
         </View>
       </View>
 
-      <View style={styles.winnerDetails}>
-        <View style={styles.detailItem}>
-          <Ionicons name="ticket-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>
-            Ticket #{item.ticket_number}
-          </Text>
+      {/* Prize Details Row */}
+      <View style={styles.prizeDetailsRow}>
+        <View style={styles.prizeDetailItem}>
+          <MaterialCommunityIcons name="gift-outline" size={14} color={PRIMARY_COLOR} />
+          <Text style={styles.prizeDetailText} numberOfLines={1}>{item.reward_name}</Text>
         </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="ribbon-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>
-            {item.reward_name}
-          </Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="cash-outline" size={16} color="#4CAF50" />
-          <Text style={[styles.detailText, styles.winningAmount]}>
-            ₹{item.winning_amount}
+        
+        <View style={styles.prizeDetailItem}>
+          <Ionicons name="sparkles" size={14} color={WARNING_COLOR} />
+          <Text style={styles.prizeDetailText} numberOfLines={1}>
+            {item.pattern_name?.replace(/_/g, ' ').toUpperCase()}
           </Text>
         </View>
       </View>
 
-      <View style={styles.ticketPreview}>
-        <View style={styles.ticketPreviewContainer}>
+      {/* Winning Ticket Grid */}
+      <View style={styles.ticketPreviewContainer}>
+        {/* <View style={styles.ticketPreviewHeader}>
+          <Ionicons name="checkmark-circle" size={14} color={SUCCESS_COLOR} />
           <Text style={styles.ticketPreviewTitle}>Winning Ticket</Text>
+        </View> */}
+        <View style={styles.ticketWrapper}>
           {renderTicketGrid(item.ticket_data)}
         </View>
       </View>
 
+      {/* Time Ago */}
       <View style={styles.timeAgoContainer}>
-        <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+        <Ionicons name="time-outline" size={12} color={TEXT_LIGHT} />
         <Text style={styles.timeAgoText}>
           Approved {item.time_since_approval}
         </Text>
@@ -200,56 +254,50 @@ const HostGameWinners = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
-  const PatternWinnersCard = () => {
-    if (!winnersData?.pattern_winners?.length) return null;
+  // const PatternWinnersCard = () => {
+  //   if (!winnersData?.pattern_winners?.length) return null;
 
-    return (
-      <View style={styles.patternCard}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="stats-chart" size={24} color="#333" />
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Winning Patterns</Text>
-          </View>
-        </View>
+  //   return (
+  //     <View style={styles.patternCard}>
+  //       <View style={styles.sectionHeader}>
+  //         <Ionicons name="stats-chart" size={18} color={PRIMARY_COLOR} />
+  //         <Text style={styles.sectionTitle}>Winning Patterns</Text>
+  //       </View>
         
-        <View style={styles.patternsContainer}>
-          {winnersData.pattern_winners.map((pattern, index) => (
-            <View key={index} style={styles.patternItem}>
-              <View style={styles.patternHeader}>
-                <View style={styles.patternNameContainer}>
-                  <Ionicons name="sparkles" size={16} color="#FF9800" />
-                  <View style={styles.patternNameWrapper}>
-                    <Text style={styles.patternName}>
-                      {pattern.pattern_name.replace(/_/g, ' ').toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.patternBadge}>
-                  <Text style={styles.patternBadgeText}>
-                    {pattern.winner_count} winner{pattern.winner_count > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.patternStats}>
-                <View style={styles.patternStat}>
-                  <Text style={styles.patternStatLabel}>Total Amount</Text>
-                  <Text style={styles.patternStatValue}>₹{pattern.total_amount}</Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
+  //       <View style={styles.patternsContainer}>
+  //         {winnersData.pattern_winners.map((pattern, index) => (
+  //           <View key={index} style={styles.patternItem}>
+  //             <View style={styles.patternHeader}>
+  //               <View style={styles.patternNameContainer}>
+  //                 <Ionicons name="sparkles" size={14} color={WARNING_COLOR} />
+  //                 <Text style={styles.patternName} numberOfLines={1}>
+  //                   {pattern.pattern_name.replace(/_/g, ' ').toUpperCase()}
+  //                 </Text>
+  //               </View>
+  //               <View style={styles.patternBadge}>
+  //                 <Text style={styles.patternBadgeText}>
+  //                   {pattern.winner_count}
+  //                 </Text>
+  //               </View>
+  //             </View>
+  //             <View style={styles.patternStats}>
+  //               <View style={styles.patternStat}>
+  //                 <Text style={styles.patternStatLabel}>Total Amount</Text>
+  //                 <Text style={styles.patternStatValue}>₹{pattern.total_amount}</Text>
+  //               </View>
+  //             </View>
+  //           </View>
+  //         ))}
+  //       </View>
+  //     </View>
+  //   );
+  // };
 
   const SummaryCard = () => (
     <View style={styles.summaryCard}>
       <View style={styles.summaryHeader}>
-        <Ionicons name="trophy" size={24} color="#FFD700" />
-        <View style={styles.summaryTitleContainer}>
-          <Text style={styles.summaryTitle}>Winners Summary</Text>
-        </View>
+        <Ionicons name="trophy" size={18} color={PRIMARY_COLOR} />
+        <Text style={styles.summaryTitle}>Winners Summary</Text>
       </View>
       
       <View style={styles.summaryStats}>
@@ -269,7 +317,7 @@ const HostGameWinners = ({ navigation, route }) => {
         
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>{winnersData?.pattern_winners?.length || 0}</Text>
-          <Text style={styles.summaryStatLabel}>Winning Patterns</Text>
+          <Text style={styles.summaryStatLabel}>Patterns</Text>
         </View>
       </View>
     </View>
@@ -279,21 +327,31 @@ const HostGameWinners = ({ navigation, route }) => {
     <Modal
       visible={modalVisible}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={() => setModalVisible(false)}
     >
       <View style={styles.modalOverlay}>
-        <ScrollView style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Winner Details</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedWinner && (
-              <>
+        <View style={styles.modalContainer}>
+          {selectedWinner && (
+            <>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalTitleContainer}>
+                  <View style={styles.ticketNumberBadge}>
+                    <Ionicons name="ticket-outline" size={14} color={PRIMARY_COLOR} />
+                    <Text style={styles.ticketNumberBadgeText}>
+                      Ticket #{selectedWinner.ticket_number}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Ionicons name="close" size={20} color={PRIMARY_COLOR} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.modalWinnerInfo}>
                   <View style={styles.modalProfile}>
                     {selectedWinner.profile_image ? (
@@ -303,19 +361,18 @@ const HostGameWinners = ({ navigation, route }) => {
                       />
                     ) : (
                       <View style={styles.modalProfileImagePlaceholder}>
-                        <Ionicons name="person" size={32} color="#666" />
+                        <Ionicons name="person" size={24} color={TEXT_LIGHT} />
                       </View>
                     )}
                     <View style={styles.modalUserInfo}>
                       <Text style={styles.modalUserName}>{selectedWinner.user_name}</Text>
                       <Text style={styles.modalUserUsername}>@{selectedWinner.username}</Text>
-                      <Text style={styles.modalUserTicket}>Ticket #{selectedWinner.ticket_number}</Text>
                     </View>
                   </View>
                   
                   <View style={styles.modalPrizeInfo}>
                     <View style={styles.modalPrizeBadge}>
-                      <Ionicons name="trophy" size={20} color="#FFD700" />
+                      <Ionicons name="trophy" size={16} color="#FFD700" />
                       <Text style={styles.modalPrizeText}>{selectedWinner.reward_name}</Text>
                     </View>
                     <Text style={styles.modalPrizeAmount}>₹{selectedWinner.winning_amount}</Text>
@@ -324,13 +381,13 @@ const HostGameWinners = ({ navigation, route }) => {
                 
                 <View style={styles.modalPatternInfo}>
                   <View style={styles.modalPatternItem}>
-                    <Ionicons name="sparkles" size={16} color="#FF9800" />
+                    <Ionicons name="sparkles" size={14} color={WARNING_COLOR} />
                     <Text style={styles.modalPatternText}>
-                      {selectedWinner.pattern_name.replace(/_/g, ' ').toUpperCase()}
+                      {selectedWinner.pattern_name?.replace(/_/g, ' ').toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.modalPatternItem}>
-                    <Ionicons name="time-outline" size={16} color="#9CA3AF" />
+                    <Ionicons name="time-outline" size={14} color={TEXT_LIGHT} />
                     <Text style={styles.modalPatternText}>
                       Approved {selectedWinner.time_since_approval}
                     </Text>
@@ -338,40 +395,36 @@ const HostGameWinners = ({ navigation, route }) => {
                 </View>
                 
                 <View style={styles.modalTicketSection}>
-                  <Text style={styles.modalTicketTitle}>Winning Ticket #{selectedWinner.ticket_number}</Text>
+                  <Text style={styles.modalTicketTitle}>Winning Ticket</Text>
                   <View style={styles.modalTicketContainer}>
-                    {renderTicketGrid(selectedWinner.ticket_data)}
+                    <View style={styles.ticketWrapper}>
+                      {renderTicketGrid(selectedWinner.ticket_data)}
+                    </View>
                     
                     <View style={styles.ticketLegend}>
                       <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, styles.unmarkedColor]} />
+                        <View style={[styles.legendColor, { backgroundColor: FILLED_CELL_BG }]} />
                         <Text style={styles.legendText}>Unmarked</Text>
                       </View>
                       <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, styles.markedColor]} />
+                        <View style={[styles.legendColor, { backgroundColor: MARKED_CELL_BG }]} />
                         <Text style={styles.legendText}>Marked (Winning)</Text>
                       </View>
                     </View>
-                    
-                    <View style={styles.patternInfo}>
-                      <Ionicons name="sparkles" size={16} color="#FF9800" />
-                      <Text style={styles.patternInfoText}>
-                        Pattern: {selectedWinner.pattern_name.replace(/_/g, ' ').toUpperCase()}
-                      </Text>
-                    </View>
                   </View>
                 </View>
-                
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.modalCloseButtonText}>Close</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </ScrollView>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <View style={styles.glassEffectOverlay} />
+                <Text style={styles.modalCloseButtonText}>Close</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
     </Modal>
   );
@@ -379,7 +432,10 @@ const HostGameWinners = ({ navigation, route }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <View style={styles.loadingIconWrapper}>
+          <Ionicons name="trophy" size={40} color={PRIMARY_COLOR} />
+        </View>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} style={styles.loadingSpinner} />
         <Text style={styles.loadingText}>Loading Winners...</Text>
       </View>
     );
@@ -387,27 +443,31 @@ const HostGameWinners = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#3498db" barStyle="light-content" />
+      <StatusBar backgroundColor={PRIMARY_COLOR} barStyle="light-content" />
 
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{gameName}</Text>
-          <Text style={styles.headerSubtitle}>Game Winners</Text>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={WHITE} />
+            </TouchableOpacity>
+
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{gameName}</Text>
+              <Text style={styles.headerSubtitle}>Game Winners</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={fetchWinners}
+            >
+              <Ionicons name="refresh" size={20} color={WHITE} />
+            </TouchableOpacity>
+          </View>
         </View>
-        
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={fetchWinners}
-        >
-          <Ionicons name="refresh" size={20} color="#FFF" />
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -417,15 +477,18 @@ const HostGameWinners = ({ navigation, route }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#3498db"
-            colors={["#3498db"]}
+            tintColor={PRIMARY_COLOR}
+            colors={[PRIMARY_COLOR]}
           />
         }
         contentContainerStyle={styles.scrollContent}
       >
         {(!winnersData?.winners || winnersData.winners.length === 0) ? (
           <View style={styles.emptyState}>
-            <Ionicons name="trophy-outline" size={80} color="#E5E7EB" />
+            <Image
+              source={{ uri: "https://cdn-icons-png.flaticon.com/512/4076/4076478.png" }}
+              style={styles.emptyIcon}
+            />
             <Text style={styles.emptyStateTitle}>No Winners Yet</Text>
             <Text style={styles.emptyStateText}>
               There are no winners for this game yet. 
@@ -436,35 +499,32 @@ const HostGameWinners = ({ navigation, route }) => {
           <>
             <SummaryCard />
             
-            <PatternWinnersCard />
+            {/* <PatternWinnersCard /> */}
             
             <View style={styles.winnersSection}>
               <View style={styles.sectionHeader}>
-                <Ionicons name="people" size={24} color="#333" />
-                <View style={styles.sectionTitleContainer}>
-                  <Text style={styles.sectionTitle}>All Winners</Text>
-                </View>
+                <Ionicons name="people" size={18} color={PRIMARY_COLOR} />
+                <Text style={styles.sectionTitle}>All Winners</Text>
                 <View style={styles.winnersCountBadge}>
                   <Text style={styles.winnersCountText}>
-                    {winnersData.total_winners} winners
+                    {winnersData.total_winners}
                   </Text>
                 </View>
               </View>
               
-              <FlatList
-                data={winnersData.winners}
-                renderItem={renderWinnerItem}
-                keyExtractor={(item) => item.id.toString()}
-                scrollEnabled={false}
-                contentContainerStyle={styles.winnersList}
-                showsVerticalScrollIndicator={false}
-              />
+              <View style={styles.winnersList}>
+                {winnersData.winners.map((item) => (
+                  <View key={item.id} style={styles.winnerWrapper}>
+                    {renderWinnerItem({ item })}
+                  </View>
+                ))}
+              </View>
             </View>
           </>
         )}
         
         <View style={styles.refreshHint}>
-          <Ionicons name="arrow-down" size={14} color="#9CA3AF" />
+          <Ionicons name="arrow-down" size={12} color={TEXT_LIGHT} />
           <Text style={styles.refreshHintText}>Pull down to refresh</Text>
         </View>
       </ScrollView>
@@ -477,7 +537,7 @@ const HostGameWinners = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: BACKGROUND_COLOR,
   },
   container: {
     flex: 1,
@@ -486,34 +546,44 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    backgroundColor: "#3498db",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    backgroundColor: PRIMARY_COLOR,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  backButton: {
-    marginRight: 15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerContent: {
+    paddingHorizontal: 16,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTextContainer: {
     flex: 1,
+    marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#FFF",
+    color: WHITE,
     marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255,255,255,0.9)",
     fontWeight: "500",
   },
@@ -529,62 +599,87 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: BACKGROUND_COLOR,
+  },
+  loadingIconWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(79, 172, 254, 0.2)',
+  },
+  loadingSpinner: {
+    marginTop: 10,
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: "#666",
+    fontSize: 15,
+    color: TEXT_LIGHT,
     fontWeight: "500",
   },
   emptyState: {
-    flex: 1,
-    justifyContent: "center",
+    backgroundColor: WHITE,
+    borderRadius: 16,
+    padding: 24,
     alignItems: "center",
-    padding: 40,
-    minHeight: 400,
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyIcon: {
+    width: 70,
+    height: 70,
+    marginBottom: 16,
+    opacity: 0.7,
   },
   emptyStateTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#666",
-    marginTop: 20,
-    marginBottom: 10,
+    color: TEXT_DARK,
+    marginBottom: 8,
   },
   emptyStateText: {
-    fontSize: 16,
-    color: "#9CA3AF",
+    fontSize: 14,
+    color: TEXT_LIGHT,
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 20,
   },
   summaryCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 16,
+    backgroundColor: WHITE,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
-  },
-  summaryTitleContainer: {
-    marginLeft: 12,
-    flex: 1,
+    marginBottom: 16,
+    gap: 8,
   },
   summaryTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
   },
   summaryStats: {
     flexDirection: "row",
@@ -596,153 +691,192 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryStatValue: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "800",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 4,
   },
   summaryStatLabel: {
     fontSize: 12,
-    color: "#666",
+    color: TEXT_LIGHT,
     fontWeight: "500",
     textAlign: "center",
   },
   summaryStatDivider: {
     width: 1,
-    height: 40,
-    backgroundColor: "#E5E7EB",
+    height: 30,
+    backgroundColor: BORDER_COLOR,
   },
   patternCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  sectionTitleContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-  },
-  patternsContainer: {
-    marginBottom: 12,
-  },
-  patternItem: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 12,
-  },
-  patternHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  patternNameContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  patternNameWrapper: {
-    marginLeft: 8,
-  },
-  patternName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
-  patternBadge: {
-    backgroundColor: "#E6F0FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  patternBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#3498db",
-  },
-  patternStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  patternStat: {
-    alignItems: "center",
-  },
-  patternStatLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
-  },
-  patternStatValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#4CAF50",
-  },
-  winnersSection: {
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  winnersCountBadge: {
-    backgroundColor: "#E6F0FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  winnersCountText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#3498db",
-  },
-  winnersList: {
-    marginBottom: 12,
-  },
-  winnerCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: WHITE,
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-    marginBottom: 12,
   },
-  winnerHeader: {
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "700",
+    color: TEXT_DARK,
+  },
+  patternsContainer: {
+    gap: 8,
+  },
+  patternItem: {
+    backgroundColor: BACKGROUND_COLOR,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  patternHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  patternNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  patternName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: TEXT_DARK,
+    flex: 1,
+  },
+  patternBadge: {
+    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  patternBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: PRIMARY_COLOR,
+  },
+  patternStats: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  patternStat: {
+    alignItems: "flex-end",
+  },
+  patternStatLabel: {
+    fontSize: 11,
+    color: TEXT_LIGHT,
+    marginBottom: 2,
+  },
+  patternStatValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: SUCCESS_COLOR,
+  },
+  winnersSection: {
+    backgroundColor: WHITE,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  winnersCountBadge: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  winnersCountText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: WHITE,
+  },
+  winnersList: {
+    gap: 12,
+  },
+  winnerWrapper: {
+    marginBottom: 0,
+  },
+  winnerCard: {
+    backgroundColor: WHITE,
+    padding: 12,
+    // No border, shadow, or elevation - clean card
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  ticketNumberContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+  },
+  ticketNo: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: TEXT_DARK,
+  },
+  winnerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  winnerBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: '#B8860B',
+  },
+  winnerInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    backgroundColor: SECTION_BG,
+    padding: 10,
+    borderRadius: 8,
   },
   winnerProfile: {
     flexDirection: "row",
@@ -750,357 +884,387 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
-    borderColor: "#FFF",
-    marginRight: 12,
+    borderColor: WHITE,
+    marginRight: 8,
   },
   profileImagePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E5E7EB",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: BACKGROUND_COLOR,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    marginRight: 8,
   },
-  winnerInfo: {
+  winnerNameContainer: {
     flex: 1,
   },
   winnerName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 2,
   },
   winnerUsername: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 11,
+    color: TEXT_LIGHT,
   },
-  winnerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFF3CD",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#FFD700",
-  },
-  winnerDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
+  winnerAmountContainer: {
+    alignItems: "flex-end",
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: SUCCESS_COLOR,
   },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  detailText: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "500",
-    marginLeft: 6,
-  },
-  winningAmount: {
-    color: "#4CAF50",
-    fontWeight: "700",
-  },
-  ticketPreview: {
-    marginBottom: 12,
-  },
-  ticketPreviewContainer: {
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  ticketPreviewTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  ticketGridContainer: {
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  columnNumbers: {
-    flexDirection: "row",
+  winnerAmountLabel: {
+    fontSize: 9,
+    color: TEXT_LIGHT,
     marginBottom: 2,
   },
-  columnNumberCell: {
-    width: CELL_SIZE,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
+  winnerAmount: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: SUCCESS_COLOR,
   },
-  columnNumberText: {
-    fontSize: 11,
-    color: "#666",
-    fontWeight: "600",
-  },
-  ticketRow: {
+  prizeDetailsRow: {
     flexDirection: "row",
-    marginBottom: 1,
+    gap: 8,
+    marginBottom: 12,
   },
-  ticketCell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    justifyContent: "center",
+  prizeDetailItem: {
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#FFFFFF",
+    backgroundColor: PRIZE_BG,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    flex: 1,
+  },
+  prizeDetailText: {
+    fontSize: 11,
+    color: TEXT_DARK,
+    fontWeight: "500",
+    flex: 1,
+  },
+  ticketPreviewContainer: {
+    marginBottom: 10,
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: SECTION_BG,
+    padding: 10,
+    borderRadius: 8,
+  },
+  ticketPreviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  ticketPreviewTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: TEXT_DARK,
+  },
+  ticketWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  // Ticket grid styles - Now properly sized
+  ticket: {
+    backgroundColor: WHITE,
+    padding: TICKET_PADDING,
+    borderWidth: 2,
+    borderColor: PRIMARY_COLOR,
+    borderRadius: 10,
+    overflow: "hidden",
+    alignSelf: 'center',
+    width: TICKET_CONTAINER_WIDTH, // Fixed width based on screen percentage
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: 'center',
+  },
+  cell: {
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 3,
   },
   emptyCell: {
-    backgroundColor: "#CCCCCC",
+    backgroundColor: 'transparent',
   },
   markedCell: {
-    backgroundColor: "#FF5252",
-    borderColor: "#FF5252",
+    borderColor: MARKED_CELL_BG,
   },
-  cellContent: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: '100%',
-    height: '100%',
-  },
-  cellNumber: {
+  number: {
     fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    fontWeight: "bold",
+    color: WHITE,
   },
   timeAgoContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
+    gap: 4,
+    marginTop: 4,
+    paddingTop: 4,
   },
   timeAgoText: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginLeft: 6,
+    fontSize: 11,
+    color: TEXT_LIGHT,
   },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
   modalContainer: {
-    flex: 1,
-    marginTop: 40,
-  },
-  modalContent: {
-    backgroundColor: "#FFF",
-    borderRadius: 24,
-    padding: 24,
-    marginHorizontal: 20,
-    marginBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#333",
-    flex: 1,
-  },
-  modalWinnerInfo: {
-    marginBottom: 20,
-  },
-  modalProfile: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalProfileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-    borderColor: "#FFF",
+    backgroundColor: WHITE,
+    borderRadius: 16,
+    width: "100%",
+    maxWidth: 380,
+    maxHeight: "80%",
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginRight: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: BACKGROUND_COLOR,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER_COLOR,
+  },
+  modalTitleContainer: {
+    flex: 1,
+  },
+  ticketNumberBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(79, 172, 254, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    alignSelf: 'flex-start',
+  },
+  ticketNumberBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: TEXT_DARK,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(79, 172, 254, 0.1)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+  },
+  modalContent: {
+    padding: 12,
+    maxHeight: 450,
+  },
+  modalWinnerInfo: {
+    marginBottom: 12,
+  },
+  modalProfile: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalProfileImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    borderWidth: 2,
+    borderColor: WHITE,
+    marginRight: 10,
   },
   modalProfileImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E5E7EB",
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: BACKGROUND_COLOR,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFF",
-    marginRight: 16,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    marginRight: 10,
   },
   modalUserInfo: {
     flex: 1,
   },
   modalUserName: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 2,
   },
   modalUserUsername: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-  },
-  modalUserTicket: {
-    fontSize: 14,
-    color: "#3498db",
-    fontWeight: "600",
+    fontSize: 12,
+    color: TEXT_LIGHT,
   },
   modalPrizeInfo: {
-    backgroundColor: "#FFF3CD",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#FFD700",
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFD700',
   },
   modalPrizeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
+    gap: 6,
   },
   modalPrizeText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333",
-    marginLeft: 8,
+    fontSize: 13,
+    fontWeight: "600",
+    color: TEXT_DARK,
+    flex: 1,
   },
   modalPrizeAmount: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
-    color: "#4CAF50",
+    color: SUCCESS_COLOR,
     textAlign: "center",
   },
   modalPatternInfo: {
     flexDirection: "row",
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 16,
+    padding: 10,
+    backgroundColor: BACKGROUND_COLOR,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    flexWrap: 'wrap',
   },
   modalPatternItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
   modalPatternText: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 11,
+    color: TEXT_DARK,
     fontWeight: "500",
-    marginLeft: 6,
   },
   modalTicketSection: {
-    marginBottom: 20,
+    marginBottom: 12,
+    alignItems: 'center',
   },
   modalTicketTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
+    color: TEXT_DARK,
+    marginBottom: 8,
     textAlign: "center",
   },
   modalTicketContainer: {
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: BACKGROUND_COLOR,
+    borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: BORDER_COLOR,
+    alignItems: 'center',
   },
   ticketLegend: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 12,
+    gap: 12,
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 10,
+    gap: 4,
   },
   legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 2,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  unmarkedColor: {
-    backgroundColor: "#80CBC4",
-  },
-  markedColor: {
-    backgroundColor: "#FF5252",
+    borderColor: BORDER_COLOR,
   },
   legendText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 8,
-  },
-  patternInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  patternInfoText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginLeft: 8,
+    fontSize: 10,
+    color: TEXT_LIGHT,
   },
   modalCloseButton: {
-    backgroundColor: "#3498db",
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  glassEffectOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 8,
   },
   modalCloseButtonText: {
-    color: "#FFF",
-    fontSize: 16,
+    color: WHITE,
+    fontSize: 13,
     fontWeight: "600",
-    textAlign: "center",
   },
   refreshHint: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 8,
+    gap: 4,
   },
   refreshHintText: {
-    fontSize: 12,
-    color: "#9CA3AF",
+    fontSize: 11,
+    color: TEXT_LIGHT,
     fontStyle: "italic",
-    marginLeft: 6,
   },
 });
 

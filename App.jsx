@@ -5,9 +5,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import BootSplash from "react-native-bootsplash";
+import { Alert } from 'react-native';
 
-// Import your screens (these need to be created)
+// Import Notification Handler
+import NotificationHandler from './src/services/NotificationHandler';
+
+// Import splash screen
+import SplashScreen from './src/screens/SplashScreen';
+
 // Auth Screens
 import Login from './src/auth/Login';
 import ChooseRole from './src/auth/ChooseRole';
@@ -18,19 +23,12 @@ import ForgotPassword from './src/auth/ForgotPassword';
 import ForgotPasswordVerify from './src/auth/ForgotPasswordVerify';
 import ResetPassword from './src/auth/ResetPassword';
 
-// User Screens (you'll need to create these)
+// User Screens
 import Home from './src/screens/user/Home';
 import About from './src/screens/user/About';
 import Game from './src/screens/user/Game';
 import Profile from './src/screens/user/Profile';
 import Faqs from './src/screens/user/Faqs';
-
-// Host Screens (you'll need to create these)
-import HostProfile from './src/screens/host/HostProfile';
-import HostDashboard from './src/screens/host/HostDashboard';
-import HostFaqs from './src/screens/host/HostFaqs';
-import HostGame from './src/screens/host/HostGame';
-import HostSubscription from './src/screens/host/HostSubscription';
 import GameDetails from './src/screens/user/GameDetails';
 import TicketsScreen from './src/screens/user/TicketsScreen';
 import TicketRequestsScreen from './src/screens/user/TicketRequestsScreen';
@@ -41,6 +39,13 @@ import UserGamePatterns from './src/screens/user/UserGamePatterns';
 import UserCalledNumbers from './src/screens/user/UserCalledNumbers';
 import UserGameResult from './src/screens/user/UserGameResult';
 import UserLiveChat from './src/screens/user/UserLiveChat';
+
+// Host Screens
+import HostProfile from './src/screens/host/HostProfile';
+import HostDashboard from './src/screens/host/HostDashboard';
+import HostFaqs from './src/screens/host/HostFaqs';
+import HostGame from './src/screens/host/HostGame';
+import HostSubscription from './src/screens/host/HostSubscription';
 import HostGamePatterns from './src/screens/host/HostGamePatterns';
 import HostGameCreation from './src/screens/host/HostGameCreation';
 import HostGameEdit from './src/screens/host/HostGameEdit';
@@ -57,7 +62,6 @@ import HostLiveChat from './src/screens/host/HostLiveChat';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// User Tabs Component
 // User Tabs Component
 function UserTabs({ onLogout }) {
   return (
@@ -80,8 +84,8 @@ function UserTabs({ onLogout }) {
           }
           return <FontAwesome name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#4facfe', // Changed to match PRIMARY_COLOR (blue)
-        tabBarInactiveTintColor: '#777777', // Changed to match TEXT_LIGHT
+        tabBarActiveTintColor: '#4facfe',
+        tabBarInactiveTintColor: '#777777',
         tabBarLabelStyle: {
           fontSize: 11,
           marginBottom: 2,
@@ -91,9 +95,9 @@ function UserTabs({ onLogout }) {
           height: 60,
           paddingBottom: 10,
           paddingTop: 5,
-          backgroundColor: '#FFFFFF', // Changed to WHITE
-          borderTopWidth: 1, // Added border
-          borderTopColor: '#EEEEEE', // Changed to BORDER_COLOR
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#EEEEEE',
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
@@ -190,23 +194,21 @@ function HostTabs({ onLogout }) {
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [isSplashHidden, setIsSplashHidden] = useState(false);
-
-  // BootSplash effect
-  useEffect(() => {
-    const init = async () => {
-      // …do multiple sync or async tasks
-    };
-
-    init().finally(async () => {
-      await BootSplash.hide({ fade: true });
-      console.log("BootSplash has been hidden successfully");
-      setIsSplashHidden(true);
-    });
-  }, []);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    // Initialize global notification handler when app starts
+    // This will run once and persist throughout the app lifecycle
+    const unsubscribe = NotificationHandler.initialize();
+    
     checkLogin();
+    
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const checkLogin = async () => {
@@ -233,12 +235,16 @@ export default function App() {
       console.log("Check login error:", error);
       setLoggedIn(false);
       setUserRole(null);
+    } finally {
+      // Hide custom splash after 3 seconds (reduced from 5)
+      setTimeout(() => {
+        setShowSplash(false);
+      }, 3000);
     }
   };
 
   const handleLogout = async () => {
     try {
-      // Clear all storage
       await AsyncStorage.multiRemove([
         "token",
         "userToken",
@@ -250,6 +256,9 @@ export default function App() {
       ]);
       setLoggedIn(false);
       setUserRole(null);
+      
+      // Show logout message
+      Alert.alert("Logged Out", "You have been successfully logged out.");
     } catch (error) {
       console.log("Logout error:", error);
     }
@@ -259,17 +268,24 @@ export default function App() {
     const role = await AsyncStorage.getItem("userRole");
     setLoggedIn(true);
     setUserRole(role);
+    
+    // Show welcome message
+    Alert.alert(
+      "Welcome Back!",
+      role === "user" ? "Ready to play some Tambola?" : "Ready to host some games?",
+      [{ text: "Let's Go!" }]
+    );
   };
 
-  // Show nothing while hiding splash screen
-  if (!isSplashHidden) {
-    return null;
+  // Show splash screen immediately
+  if (showSplash) {
+    return <SplashScreen />;
   }
 
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {loggedIn ? (
               <>
@@ -280,111 +296,45 @@ export default function App() {
                       <UserTabs {...props} onLogout={handleLogout} />
                     )}
                   </Stack.Screen>
-                ) : (
+                ) : userRole === "host" ? (
                   <Stack.Screen name="HostTabs">
                     {(props) => (
                       <HostTabs {...props} onLogout={handleLogout} />
                     )}
                   </Stack.Screen>
-                )}
+                ) : null}
 
                 {/* USER-ONLY SCREENS */}
                 {userRole === "user" && (
                   <>
-                    <Stack.Screen 
-                      name="GameDetails" 
-                      component={GameDetails}
-                    />
-                    <Stack.Screen 
-                      name="TicketsScreen" 
-                      component={TicketsScreen}
-                    />
-                    <Stack.Screen 
-                      name="TicketRequestsScreen" 
-                      component={TicketRequestsScreen}
-                    />
-                    <Stack.Screen 
-                      name="UserGameRoom" 
-                      component={UserGameRoom}
-                    />
-                    <Stack.Screen 
-                      name="UserGameClaim" 
-                      component={UserGameClaim}
-                    />
-                    <Stack.Screen 
-                      name="UserGameWinners" 
-                      component={UserGameWinners}
-                    />
-                    <Stack.Screen 
-                      name="UserGamePatterns" 
-                      component={UserGamePatterns}
-                    />
-                    <Stack.Screen 
-                      name="UserCalledNumbers" 
-                      component={UserCalledNumbers}
-                    />
-                    <Stack.Screen 
-                      name="UserGameResult" 
-                      component={UserGameResult}
-                    />
-                    <Stack.Screen 
-                      name="UserLiveChat" 
-                      component={UserLiveChat}
-                    />
+                    <Stack.Screen name="GameDetails" component={GameDetails} />
+                    <Stack.Screen name="TicketsScreen" component={TicketsScreen} />
+                    <Stack.Screen name="TicketRequestsScreen" component={TicketRequestsScreen} />
+                    <Stack.Screen name="UserGameRoom" component={UserGameRoom} />
+                    <Stack.Screen name="UserGameClaim" component={UserGameClaim} />
+                    <Stack.Screen name="UserGameWinners" component={UserGameWinners} />
+                    <Stack.Screen name="UserGamePatterns" component={UserGamePatterns} />
+                    <Stack.Screen name="UserCalledNumbers" component={UserCalledNumbers} />
+                    <Stack.Screen name="UserGameResult" component={UserGameResult} />
+                    <Stack.Screen name="UserLiveChat" component={UserLiveChat} />
                   </>
                 )}
 
                 {/* HOST-ONLY SCREENS */}
                 {userRole === "host" && (
                   <>
-                    <Stack.Screen 
-                      name="HostGamePatterns" 
-                      component={HostGamePatterns}
-                    />
-                    <Stack.Screen 
-                      name="HostGameCreation" 
-                      component={HostGameCreation}
-                    />
-                    <Stack.Screen 
-                      name="HostGameEdit" 
-                      component={HostGameEdit}
-                    />
-                    <Stack.Screen 
-                      name="HostTicketRequests" 
-                      component={HostTicketRequests}
-                    />
-                    <Stack.Screen 
-                      name="HostGameUsers" 
-                      component={HostGameUsers}
-                    />
-                    <Stack.Screen 
-                      name="HostGameRoom" 
-                      component={HostGameRoom}
-                    />
-                    <Stack.Screen 
-                      name="HostClaimRequests" 
-                      component={HostClaimRequests}
-                    />
-                    <Stack.Screen 
-                      name="HostGameWinners" 
-                      component={HostGameWinners}
-                    />
-                    <Stack.Screen 
-                      name="HostCalledNumbers" 
-                      component={HostCalledNumbers}
-                    />
-                    <Stack.Screen 
-                      name="HostGameOptions" 
-                      component={HostGameOptions}
-                    />
-                    <Stack.Screen 
-                      name="HostGameReward" 
-                      component={HostGameReward}
-                    />
-                    <Stack.Screen 
-                      name="HostLiveChat" 
-                      component={HostLiveChat}
-                    />
+                    <Stack.Screen name="HostGamePatterns" component={HostGamePatterns} />
+                    <Stack.Screen name="HostGameCreation" component={HostGameCreation} />
+                    <Stack.Screen name="HostGameEdit" component={HostGameEdit} />
+                    <Stack.Screen name="HostTicketRequests" component={HostTicketRequests} />
+                    <Stack.Screen name="HostGameUsers" component={HostGameUsers} />
+                    <Stack.Screen name="HostGameRoom" component={HostGameRoom} />
+                    <Stack.Screen name="HostClaimRequests" component={HostClaimRequests} />
+                    <Stack.Screen name="HostGameWinners" component={HostGameWinners} />
+                    <Stack.Screen name="HostCalledNumbers" component={HostCalledNumbers} />
+                    <Stack.Screen name="HostGameOptions" component={HostGameOptions} />
+                    <Stack.Screen name="HostGameReward" component={HostGameReward} />
+                    <Stack.Screen name="HostLiveChat" component={HostLiveChat} />
                   </>
                 )}
               </>
@@ -396,34 +346,13 @@ export default function App() {
                     <Login {...props} onLoginSuccess={handleLoginSuccess} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen 
-                  name="ChooseRole" 
-                  component={ChooseRole}
-                />
-                <Stack.Screen 
-                  name="MobileVerify" 
-                  component={MobileVerify}
-                />
-                <Stack.Screen 
-                  name="MobileVerifyOtp" 
-                  component={MobileVerifyOtp}
-                />
-                <Stack.Screen 
-                  name="Register" 
-                  component={Register}
-                />
-                <Stack.Screen 
-                  name="ForgotPassword" 
-                  component={ForgotPassword}
-                />
-                <Stack.Screen 
-                  name="ForgotPasswordVerify" 
-                  component={ForgotPasswordVerify}
-                />
-                <Stack.Screen 
-                  name="ResetPassword" 
-                  component={ResetPassword}
-                />
+                <Stack.Screen name="ChooseRole" component={ChooseRole} />
+                <Stack.Screen name="MobileVerify" component={MobileVerify} />
+                <Stack.Screen name="MobileVerifyOtp" component={MobileVerifyOtp} />
+                <Stack.Screen name="Register" component={Register} />
+                <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
+                <Stack.Screen name="ForgotPasswordVerify" component={ForgotPasswordVerify} />
+                <Stack.Screen name="ResetPassword" component={ResetPassword} />
               </>
             )}
           </Stack.Navigator>

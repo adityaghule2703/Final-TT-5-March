@@ -51,7 +51,6 @@ const UserLiveChat = ({ navigation, route }) => {
   const scrollViewRef = useRef(null);
   const messageInputRef = useRef(null);
   const isMounted = useRef(true);
-  const pollingIntervalRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
   const scrollOffsetRef = useRef(0);
   const lastMessageIdRef = useRef(null);
@@ -614,27 +613,6 @@ const UserLiveChat = ({ navigation, route }) => {
     );
   };
 
-  // Start polling
-  const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-   
-    pollingIntervalRef.current = setInterval(() => {
-      fetchMessages();
-      fetchParticipants();
-      fetchMuteStatus();
-    }, 5000);
-  }, []);
-
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  }, []);
-
   // Scroll to bottom
   const scrollToBottom = () => {
     setShouldScrollToBottom(true);
@@ -647,7 +625,6 @@ const UserLiveChat = ({ navigation, route }) => {
 
   // Leave chat
   const leaveChat = async () => {
-    stopPolling();
     try {
       const token = await AsyncStorage.getItem("token");
       await axios.post(
@@ -666,6 +643,18 @@ const UserLiveChat = ({ navigation, route }) => {
       navigation.goBack();
     }
   };
+
+  // Add event listener for app coming to foreground
+  useEffect(() => {
+    const refreshOnFocus = navigation.addListener('focus', () => {
+      // Refresh messages when screen comes into focus
+      fetchMessages();
+      fetchParticipants();
+      fetchMuteStatus();
+    });
+
+    return refreshOnFocus;
+  }, [navigation]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -687,7 +676,6 @@ const UserLiveChat = ({ navigation, route }) => {
         );
         
         await initialFetch();
-        startPolling();
       } catch (error) {
         console.log("Error joining chat:", error);
         Alert.alert("Error", "Failed to join chat");
@@ -699,7 +687,6 @@ const UserLiveChat = ({ navigation, route }) => {
 
     return () => {
       isMounted.current = false;
-      stopPolling();
     };
   }, []);
 
@@ -1220,7 +1207,7 @@ const UserLiveChat = ({ navigation, route }) => {
   );
 };
 
-// Styles remain the same...
+// Styles remain exactly the same...
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

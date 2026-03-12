@@ -1,3 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bootsplash_background">#15545D</color>
+    <!-- Your exact two-color combination -->
+    <color name="splash_purple">#262930</color>
+    <color name="splash_gray">#262930</color>
 </resources>

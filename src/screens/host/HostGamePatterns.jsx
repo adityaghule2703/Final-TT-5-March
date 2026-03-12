@@ -15,7 +15,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width, height } = Dimensions.get('window');
 const TICKET_WIDTH = Math.min(width, height) - 100;
@@ -139,6 +139,81 @@ const HostGamePatterns = () => {
     }
     
     setFilteredPatterns(filtered);
+  };
+
+  // Updated function with all 11 specific Tambola patterns (matching UserGamePatterns)
+ // Updated function with exact pattern names from API
+const getPatternIcon = (pattern) => {
+  const patternName = pattern.pattern_name.toLowerCase();
+  
+  switch (patternName) {
+    case 'top_line':
+      return 'arrow-up'; // ↑ (Ionicons)
+    
+    case 'middle_line':
+      return 'arrow-left-right'; // ↔ (MaterialCommunityIcons)
+    
+    case 'bottom_line':
+      return 'arrow-down'; // ↓ (Ionicons)
+    
+    case 'breakfast':
+      return 'cafe'; // ☕ (Ionicons)
+    
+    case 'lunch':
+      return 'food'; // 🍔 (MaterialCommunityIcons)
+    
+    case 'dinner':
+      return 'restaurant'; // 🍽️ (Ionicons)
+    
+    case 'four_corners':
+      return 'apps'; // ▦ (MaterialCommunityIcons)
+    
+    case 'bamboo':
+      return 'leaf'; // 🍃 (MaterialCommunityIcons)
+    
+    case 'early_five':
+      return 'numeric-5-circle'; // ⑤ (MaterialCommunityIcons)
+    
+    case 'non_claimers':
+      return 'close-circle'; // ⭕ (Ionicons)
+    
+    case 'full_house':
+      return 'home'; // 🏠 (Ionicons)
+    
+    default:
+      // Default based on logic type
+      switch (pattern.logic_type) {
+        case 'position_based':
+          return 'grid';
+        case 'count_based':
+          return 'counter';
+        case 'all_numbers':
+          return 'check-all';
+        case 'row_complete':
+          return 'format-line-weight';
+        case 'number_based':
+          return 'calculator';
+        case 'number_range':
+          return 'filter';
+        default:
+          return 'ticket-confirmation';
+      }
+  }
+};
+
+  // Helper function to render the appropriate icon
+  const renderIcon = (iconName, size, color) => {
+    // Icons that should use Ionicons
+    const ioniconsIcons = [
+      'arrow-down', 'arrow-up', 'cafe', 'restaurant', 'home', 
+      'close-circle', 'calculator', 'grid'
+    ];
+    
+    if (ioniconsIcons.includes(iconName)) {
+      return <Ionicons name={iconName} size={size} color={color} />;
+    } else {
+      return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+    }
   };
 
   // Generate valid tambola ticket with exactly 5 numbers per row
@@ -311,10 +386,45 @@ const HostGamePatterns = () => {
     return patternGrid;
   };
 
+  const getPatternColor = (logicType) => {
+    switch (logicType) {
+      case 'position_based':
+        return '#3498db';
+      case 'count_based':
+        return '#FF9800';
+      case 'all_numbers':
+        return '#4CAF50';
+      case 'row_complete':
+        return '#9C27B0';
+      case 'number_based':
+        return '#F44336';
+      case 'number_range':
+        return '#607D8B';
+      default:
+        return '#666';
+    }
+  };
+
+  const formatPatternName = (name) => {
+    return name
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const formatLogicType = (type) => {
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   const renderPatternCard = (pattern) => {
     const isPositionBased = pattern.logic_type === 'position_based';
     const ticketNumbers = generateTicketForPattern(pattern);
     const patternGrid = isPositionBased ? getPatternPositionsForTicket(ticketNumbers, pattern) : null;
+    const iconName = getPatternIcon(pattern);
+    const color = getPatternColor(pattern.logic_type);
     
     return (
       <TouchableOpacity
@@ -327,12 +437,8 @@ const HostGamePatterns = () => {
         activeOpacity={0.7}
       >
         <View style={styles.patternHeader}>
-          <View style={styles.patternIcon}>
-            <Ionicons 
-              name={getPatternIcon(pattern.logic_type)} 
-              size={24} 
-              color="#FF7675" 
-            />
+          <View style={[styles.patternIcon, { backgroundColor: color + '20' }]}>
+            {renderIcon(iconName, 24, color)}
           </View>
           <View style={styles.patternInfo}>
             <Text style={styles.patternName} numberOfLines={1}>
@@ -341,18 +447,18 @@ const HostGamePatterns = () => {
             <View style={styles.patternMeta}>
               <View style={[
                 styles.typeBadge,
-                { backgroundColor: getPatternColor(pattern.logic_type) + '20' }
+                { backgroundColor: color + '20' }
               ]}>
                 <Text style={[
                   styles.typeText,
-                  { color: getPatternColor(pattern.logic_type) }
+                  { color: color }
                 ]}>
                   {formatLogicType(pattern.logic_type)}
                 </Text>
               </View>
               {isPositionBased && pattern.positions?.length > 0 && (
                 <View style={styles.positionsBadge}>
-                  <Ionicons name="grid" size={12} color="#666" />
+                  <MaterialCommunityIcons name="grid" size={12} color="#666" />
                   <Text style={styles.positionsText}>
                     {pattern.positions.length} positions
                   </Text>
@@ -360,7 +466,7 @@ const HostGamePatterns = () => {
               )}
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#999" />
         </View>
         
         <Text style={styles.patternDescription} numberOfLines={2}>
@@ -495,58 +601,6 @@ const HostGamePatterns = () => {
     return position;
   };
 
-  const getPatternIcon = (logicType) => {
-    switch (logicType) {
-      case 'position_based':
-        return 'grid-outline';
-      case 'count_based':
-        return 'stats-chart-outline';
-      case 'all_numbers':
-        return 'checkbox-outline';
-      case 'row_complete':
-        return 'reorder-three-outline';
-      case 'number_based':
-        return 'calculator-outline';
-      case 'number_range':
-        return 'funnel-outline';
-      default:
-        return 'help-circle-outline';
-    }
-  };
-
-  const getPatternColor = (logicType) => {
-    switch (logicType) {
-      case 'position_based':
-        return '#3498db';
-      case 'count_based':
-        return '#FF9800';
-      case 'all_numbers':
-        return '#4CAF50';
-      case 'row_complete':
-        return '#9C27B0';
-      case 'number_based':
-        return '#F44336';
-      case 'number_range':
-        return '#607D8B';
-      default:
-        return '#666';
-    }
-  };
-
-  const formatPatternName = (name) => {
-    return name
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  const formatLogicType = (type) => {
-    return type
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -633,7 +687,7 @@ const HostGamePatterns = () => {
             filteredPatterns.map(renderPatternCard)
           ) : patterns.length > 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={60} color="#CCC" />
+              <MaterialCommunityIcons name="search-outline" size={60} color="#CCC" />
               <Text style={styles.emptyStateTitle}>No Patterns Found</Text>
               <Text style={styles.emptyStateText}>
                 Try changing the filter
@@ -641,7 +695,7 @@ const HostGamePatterns = () => {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="grid-outline" size={60} color="#CCC" />
+              <MaterialCommunityIcons name="grid-outline" size={60} color="#CCC" />
               <Text style={styles.emptyStateTitle}>No Patterns Available</Text>
               <Text style={styles.emptyStateText}>
                 Patterns will be available soon
@@ -675,11 +729,11 @@ const HostGamePatterns = () => {
                         styles.modalIcon,
                         { backgroundColor: getPatternColor(selectedPattern.logic_type) + '20' }
                       ]}>
-                        <Ionicons 
-                          name={getPatternIcon(selectedPattern.logic_type)} 
-                          size={24} 
-                          color={getPatternColor(selectedPattern.logic_type)} 
-                        />
+                        {renderIcon(
+                          getPatternIcon(selectedPattern), 
+                          24, 
+                          getPatternColor(selectedPattern.logic_type)
+                        )}
                       </View>
                       <Text style={styles.modalTitle} numberOfLines={2}>
                         {formatPatternName(selectedPattern.pattern_name)}
@@ -727,7 +781,7 @@ const HostGamePatterns = () => {
                         <Text style={styles.sectionTitle}>Pattern Positions</Text>
                         {selectedPattern.positions.map((pos, index) => (
                           <View key={index} style={styles.positionItem}>
-                            <View style={styles.positionBadge}>
+                            <View style={[styles.positionBadge, { backgroundColor: '#FF7675' }]}>
                               <Text style={styles.positionBadgeText}>
                                 {pos.row}-{pos.position}
                               </Text>
@@ -921,6 +975,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#F0F0F0',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   patternHeader: {
     flexDirection: 'row',
@@ -928,7 +987,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   patternIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FF7675',
   },
   patternInfo: {
     flex: 1,
@@ -948,6 +1014,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF7675',
   },
   typeText: {
     fontSize: 10,
@@ -961,6 +1029,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
     gap: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   positionsText: {
     fontSize: 10,
@@ -979,15 +1049,10 @@ const styles = StyleSheet.create({
   miniTicket: {
     borderRadius: 12,
     padding: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F8FAFC',
     width: '100%',
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   miniRow: {
     flexDirection: 'row',
@@ -997,16 +1062,18 @@ const styles = StyleSheet.create({
   miniCell: {
     width: 28,
     height: 28,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 2,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   miniCellWithNumber: {
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#FF7675',
   },
   miniCellPattern: {
     backgroundColor: '#FFEDED',
@@ -1070,6 +1137,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     maxHeight: '85%',
     minHeight: '50%',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1091,10 +1165,12 @@ const styles = StyleSheet.create({
   modalIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FF7675',
   },
   modalTitle: {
     fontSize: 20,
@@ -1107,6 +1183,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF7675',
   },
   modalTypeText: {
     fontSize: 12,
@@ -1170,11 +1248,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     width: TICKET_WIDTH,
     alignSelf: 'center',
   },
@@ -1192,11 +1265,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   fullCellWithNumber: {
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#FF7675',
   },
   fullCellPattern: {
     backgroundColor: '#FFEDED',
@@ -1237,7 +1312,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   positionBadge: {
-    backgroundColor: '#FF7675',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1278,7 +1352,7 @@ const styles = StyleSheet.create({
   legendColorNormal: {
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#FF7675',
   },
   legendColorEmpty: {
     backgroundColor: '#F5F5F5',
@@ -1291,12 +1365,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   infoCard: {
-    backgroundColor: '#FFEDED',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#FFD6D6',
+    borderColor: '#E0E0E0',
   },
   infoHeader: {
     flexDirection: 'row',

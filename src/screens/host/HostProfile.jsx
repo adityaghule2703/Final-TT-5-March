@@ -1,27 +1,73 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  View,
-  Text,
   StyleSheet,
+  Text,
+  View,
+  Image,
   ScrollView,
   TouchableOpacity,
-  Image,
-  Alert,
-  ActivityIndicator,
-  SafeAreaView,
+  FlatList,
   Modal,
-  TextInput,
-  Linking,
+  ActivityIndicator,
+  RefreshControl,
+  Dimensions,
+  SafeAreaView,
+  StatusBar,
+  Animated,
+  Easing,
   Platform,
-  PermissionsAndroid,
+  TextInput,
+  Alert,
+  Linking,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   launchCamera,
   launchImageLibrary,
 } from 'react-native-image-picker';
+
+const { width } = Dimensions.get('window');
+
+// Color scheme matching the host profile
+const COLORS = {
+  primary: "#FF7675", // Main host color (kept original)
+  accent: "#ff9800", // Orange accent
+  background: "#F6F8FA", // Light background
+  surface: "#FFFFFF",
+  textDark: "#2c3e50",
+  textLight: "#7f8c8d",
+  border: "#ecf0f1",
+  
+  // Status colors
+  verified: "#2ecc71",
+  pending: "#FF9800",
+  rejected: "#e74c3c",
+  
+  // Quick action colors
+  deposit: "#4facfe",
+  withdraw: "#FF6B6B",
+  refer: "#4ECDC4",
+  support: "#9B59B6",
+  
+  // Additional colors
+  purple: "#9B59B6",
+  purpleLight: "#F3E5F5",
+  orange: "#FF9800",
+  orangeLight: "#FFF3E0",
+  teal: "#4ECDC4",
+  tealLight: "#E0F2F1",
+  pink: "#FF6B6B",
+  pinkLight: "#FFE5E5",
+  red: "#e74c3c",
+  redLight: "#FEE2E2",
+  green: "#2ecc71",
+  greenLight: "#D1FAE5",
+};
+
+const BASE_URL = "https://tambolatime.co.in/public/";
 
 const HostProfile = ({ navigation, onLogout }) => {
   const [hostData, setHostData] = useState(null);
@@ -32,25 +78,101 @@ const HostProfile = ({ navigation, onLogout }) => {
   });
   const [imageUri, setImageUri] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [imageModalVisible, setImageModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
   const [kycModalVisible, setKycModalVisible] = useState(false);
-
-  const BASE_URL = "https://tambolatime.co.in/public/";
+  
+  // Animation values
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const floatAnim1 = useRef(new Animated.Value(0)).current;
+  const floatAnim2 = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Helper function to get full image URL
   const getFullImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    
-    // If already a full URL, return as is
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Remove leading slash if present
+    if (imagePath.startsWith('http')) return imagePath;
     const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
     return BASE_URL + cleanPath;
+  };
+
+  useEffect(() => {
+    fetchHostProfile();
+    startAnimations();
+    
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const startAnimations = () => {
+    // Floating animations
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim1, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim1, {
+          toValue: 0,
+          duration: 4000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim2, {
+          toValue: 1,
+          duration: 5000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim2, {
+          toValue: 0,
+          duration: 5000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   };
 
   const fetchHostProfile = async () => {
@@ -76,12 +198,10 @@ const HostProfile = ({ navigation, onLogout }) => {
         const host = response.data.host;
         setHostData(host);
         
-        // Initialize form data with only editable field (name)
         setFormData({
           name: host.name || "",
         });
         
-        // Set profile image URL
         if (host.profile_image_url) {
           setImageUri(host.profile_image_url);
         } else if (host.profile_image) {
@@ -94,7 +214,6 @@ const HostProfile = ({ navigation, onLogout }) => {
       console.log("Error fetching host profile:", error);
       setError(error.response?.data?.message || error.message || "Failed to load profile");
       
-      // If token is invalid, logout
       if (error.response?.status === 401) {
         Alert.alert("Session Expired", "Please login again");
         onLogout();
@@ -104,82 +223,72 @@ const HostProfile = ({ navigation, onLogout }) => {
     }
   };
 
-  useEffect(() => {
-    fetchHostProfile();
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchHostProfile().finally(() => setRefreshing(false));
   }, []);
 
   const requestImagePermissions = async (source) => {
-  if (Platform.OS === 'android') {
-    try {
-      const androidVersion = Platform.Version;
-      let permissions = [];
-      
-      // For camera, need camera permission
-      if (source === "camera") {
-        permissions.push(PermissionsAndroid.PERMISSIONS.CAMERA);
-      }
-      
-      // For storage permission
-      if (androidVersion >= 33) {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
-      } else {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
-      }
-      
-      // Just request permissions without checking first
-      // The system will handle if they're already granted
-      const results = await PermissionsAndroid.requestMultiple(permissions);
-      
-      // Check if all permissions are granted
-      const allGranted = permissions.every(
-        permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED
-      );
-      
-      if (!allGranted) {
-        // Check if user denied permanently
-        const cameraRationale = await PermissionsAndroid.shouldShowRequestPermissionRationale(
-          PermissionsAndroid.PERMISSIONS.CAMERA
+    if (Platform.OS === 'android') {
+      try {
+        const androidVersion = Platform.Version;
+        let permissions = [];
+        
+        if (source === "camera") {
+          permissions.push(PermissionsAndroid.PERMISSIONS.CAMERA);
+        }
+        
+        if (androidVersion >= 33) {
+          permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
+        } else {
+          permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+        }
+        
+        const results = await PermissionsAndroid.requestMultiple(permissions);
+        
+        const allGranted = permissions.every(
+          permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED
         );
         
-        // Only show alert if user denied permanently
-        if (!cameraRationale) {
-          Alert.alert(
-            "Permission Required",
-            "Please grant camera and storage permissions to use this feature.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Open Settings",
-                onPress: () => {
-                  if (Platform.OS === 'android') {
-                    Linking.openSettings();
+        if (!allGranted) {
+          const cameraRationale = await PermissionsAndroid.shouldShowRequestPermissionRationale(
+            PermissionsAndroid.PERMISSIONS.CAMERA
+          );
+          
+          if (!cameraRationale) {
+            Alert.alert(
+              "Permission Required",
+              "Please grant camera and storage permissions to use this feature.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Open Settings",
+                  onPress: () => {
+                    if (Platform.OS === 'android') {
+                      Linking.openSettings();
+                    }
                   }
                 }
-              }
-            ]
-          );
+              ]
+            );
+          }
+          return false;
         }
-        return false;
+        
+        return true;
+      } catch (error) {
+        console.warn("Permission request error:", error);
+        return true;
       }
-      
-      return true;
-    } catch (error) {
-      console.warn("Permission request error:", error);
-      // Continue anyway - the image picker might still work
-      return true;
     }
-  }
-  return true; // For iOS
-};
+    return true;
+  };
 
   const handleImagePick = async (source) => {
     setImageModalVisible(false);
     
-    // Check permissions before proceeding
     const hasPermission = await requestImagePermissions(source);
-    if (!hasPermission) {
-      return;
-    }
+    if (!hasPermission) return;
     
     const options = {
       mediaType: 'photo',
@@ -216,11 +325,8 @@ const HostProfile = ({ navigation, onLogout }) => {
   };
 
   const handleKYCDocumentPick = async (source) => {
-    // Check permissions before proceeding
     const hasPermission = await requestImagePermissions(source);
-    if (!hasPermission) {
-      return;
-    }
+    if (!hasPermission) return;
     
     setUploading(true);
     
@@ -261,7 +367,6 @@ const HostProfile = ({ navigation, onLogout }) => {
         return;
       }
 
-      // Upload the selected image as KYC document
       const token = await AsyncStorage.getItem("hostToken");
       
       if (!token) {
@@ -271,7 +376,6 @@ const HostProfile = ({ navigation, onLogout }) => {
       const formDataToSend = new FormData();
       const selectedImage = result.assets[0];
       
-      // Extract file extension
       let type = 'image/jpeg';
       const filename = selectedImage.fileName || `kyc_document_${Date.now()}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
@@ -299,7 +403,7 @@ const HostProfile = ({ navigation, onLogout }) => {
 
       if (response.data.success) {
         Alert.alert("Success", "KYC document uploaded successfully");
-        fetchHostProfile(); // Refresh profile data
+        fetchHostProfile();
       } else {
         throw new Error(response.data.message || "Failed to upload KYC document");
       }
@@ -326,10 +430,8 @@ const HostProfile = ({ navigation, onLogout }) => {
       const token = await AsyncStorage.getItem("hostToken");
       const formDataToSend = new FormData();
 
-      // Append only editable fields (name)
       formDataToSend.append("name", formData.name);
 
-      // Append image if selected and it's a new local image
       if (imageUri && 
           !imageUri.startsWith(BASE_URL) && 
           !imageUri.startsWith('http') &&
@@ -337,7 +439,6 @@ const HostProfile = ({ navigation, onLogout }) => {
         const localUri = imageUri;
         const filename = localUri.split('/').pop();
         
-        // Extract file extension
         let type = 'image/jpeg';
         if (filename) {
           const match = /\.(\w+)$/.exec(filename);
@@ -370,7 +471,6 @@ const HostProfile = ({ navigation, onLogout }) => {
         Alert.alert("Success", "Profile updated successfully!");
         setEditMode(false);
         
-        // Update image URL from API response
         if (updatedHost.profile_image_url) {
           setImageUri(updatedHost.profile_image_url);
         } else if (updatedHost.profile_image) {
@@ -390,9 +490,9 @@ const HostProfile = ({ navigation, onLogout }) => {
     }
   };
 
-  const uploadKYCDocument = async () => {
+  const uploadKYCDocument = () => {
     Alert.alert(
-      "Upload KYC",
+      "Upload KYC Document",
       "Please upload your KYC document. Ensure it's clear and readable.",
       [
         { text: "Cancel", style: "cancel" },
@@ -414,16 +514,13 @@ const HostProfile = ({ navigation, onLogout }) => {
       return;
     }
 
-    // Check if it's an image (jpg, jpeg, png) or PDF
     const url = hostData.kyc_document_url;
     const isImage = /\.(jpg|jpeg|png)$/i.test(url);
     const isPDF = /\.pdf$/i.test(url);
 
     if (isImage) {
-      // For images, show in modal
       setKycModalVisible(true);
     } else if (isPDF) {
-      // For PDFs, try to open in browser
       try {
         const supported = await Linking.canOpenURL(url);
         if (supported) {
@@ -481,684 +578,1239 @@ const HostProfile = ({ navigation, onLogout }) => {
   const getKYCStatusColor = (status) => {
     switch (status) {
       case "verified":
-        return "#2ecc71";
+        return COLORS.verified;
       case "pending":
-        return "#FF9800";
+        return COLORS.pending;
       case "rejected":
-        return "#e74c3c";
+        return COLORS.rejected;
       default:
-        return "#95a5a6";
+        return COLORS.textLight;
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const Header = () => (
+    <View style={styles.header}>
+      <View>
+        <Text style={styles.headerTitle}>Host Profile</Text>
+        <Text style={styles.headerSubtitle}>Manage your host account</Text>
+      </View>
+
+      <TouchableOpacity style={styles.notification}>
+        <Ionicons name="notifications-outline" size={22} color={COLORS.surface} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const StatCard = ({ number, label, icon, color }) => {
+    const floatValue = floatAnim1.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -10]
+    });
+
+    return (
+      <Animated.View 
+        style={[
+          styles.statCard,
+          {
+            transform: [{ translateY: floatValue }]
+          }
+        ]}
+      >
+        <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+          <Ionicons name={icon} size={24} color={color} />
+        </View>
+        <Text style={styles.statNumber}>{number}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </Animated.View>
+    );
   };
+
+  const InfoCard = ({ icon, label, value, color }) => (
+    <View style={styles.infoCard}>
+      <View style={[styles.infoIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value || "N/A"}</Text>
+      </View>
+    </View>
+  );
+
+  const SettingItem = ({ icon, title, description, color, onPress }) => (
+    <TouchableOpacity style={styles.settingItem} onPress={onPress}>
+      <View style={[styles.settingIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <View style={styles.settingContent}>
+        <Text style={styles.settingTitle}>{title}</Text>
+        <Text style={styles.settingDescription}>{description}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#FF7675" />
-        <Text style={{ marginTop: 10, color: "#7f8c8d" }}>Loading profile...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 30 }}>
-        <FontAwesome name="exclamation-triangle" size={60} color="#e74c3c" />
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#2c3e50", marginTop: 20, marginBottom: 10 }}>
-          Oops! Something went wrong
-        </Text>
-        <Text style={{ fontSize: 14, color: "#7f8c8d", textAlign: "center", marginBottom: 30 }}>
-          {error}
-        </Text>
-        <TouchableOpacity 
-          style={{ backgroundColor: "#FF7675", paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 }}
-          onPress={fetchHostProfile}
-        >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={60} color={COLORS.rejected} />
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchHostProfile}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!hostData) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 30 }}>
-        <FontAwesome name="user-slash" size={60} color="#95a5a6" />
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#2c3e50", marginTop: 20, marginBottom: 10 }}>
-          No profile data found
-        </Text>
-        <TouchableOpacity 
-          style={{ backgroundColor: "#FF7675", paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 }}
-          onPress={fetchHostProfile}
-        >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>Load Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="person-outline" size={60} color={COLORS.textLight} />
+          <Text style={styles.errorTitle}>No profile data found</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchHostProfile}>
+            <Text style={styles.retryButtonText}>Load Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+
+      <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => editMode && setImageModalVisible(true)}
-            disabled={!editMode}
-          >
-            <Image
-              source={{
-                uri: imageUri
-                  ? imageUri
-                  : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-              }}
-              style={[
-                styles.profilePic,
-                editMode && { borderWidth: 2, borderColor: "#FF7675" },
-              ]}
-              onError={() => setImageUri(null)}
+        <Header />
+
+        {/* Animated Background Elements */}
+        <Animated.View 
+          style={[
+            styles.backgroundCircle1,
+            {
+              transform: [
+                { translateY: floatAnim1.interpolate({ inputRange: [0, 1], outputRange: [0, 30] }) },
+                { scale: pulseAnim }
+              ]
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.backgroundCircle2,
+            {
+              transform: [
+                { translateY: floatAnim2.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }
+              ]
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.backgroundCircle3,
+            {
+              transform: [
+                { scale: pulseAnim.interpolate({ inputRange: [1, 1.05], outputRange: [1, 1.1] }) }
+              ]
+            }
+          ]} 
+        />
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
             />
-            {editMode && (
-              <View style={styles.editImageBadge}>
-                <Text style={styles.editImageText}>Edit</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {editMode ? (
-            <TextInput
-              style={styles.userNameInput}
-              value={formData.name}
-              onChangeText={(text) => handleInputChange("name", text)}
-              placeholder="Enter your name"
-            />
-          ) : (
-            <Text style={styles.userName}>{hostData?.name || "Host"}</Text>
-          )}
-
-          <View style={styles.usernameContainer}>
-            <Text style={styles.username}>@{hostData?.username}</Text>
-            <View style={styles.idContainer}>
-              <Text style={styles.idLabel}>ID: </Text>
-              <Text style={styles.idValue}>{hostData?.id}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => {
-              if (editMode) {
-                updateProfile();
-              } else {
-                setEditMode(true);
+          }
+        >
+          {/* Profile Hero Section */}
+          <Animated.View 
+            style={[
+              styles.profileHeroSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }]
               }
-            }}
-            disabled={saving}
+            ]}
           >
-            <Text style={styles.editButtonText}>
-              {saving ? "Saving..." : editMode ? "Save" : "Edit Profile"}
-            </Text>
-          </TouchableOpacity>
+            <View style={styles.profileHeroContent}>
+              <TouchableOpacity
+                onPress={() => editMode && setImageModalVisible(true)}
+                disabled={!editMode}
+                style={styles.profileImageContainer}
+              >
+                <Image
+                  source={{
+                    uri: imageUri
+                      ? imageUri
+                      : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+                  }}
+                  style={styles.profileImage}
+                />
+                {editMode && (
+                  <View style={[styles.editImageBadge, { backgroundColor: COLORS.primary }]}>
+                    <Ionicons name="camera" size={16} color={COLORS.surface} />
+                  </View>
+                )}
+              </TouchableOpacity>
 
-          {editMode && (
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: "#ccc", marginTop: 5 }]}
-              onPress={() => {
-                setEditMode(false);
-                // Reset form data to original
-                setFormData({
-                  name: hostData?.name || "",
-                });
-                // Reset image to original from server
-                if (hostData?.profile_image_url) {
-                  setImageUri(hostData.profile_image_url);
-                } else if (hostData?.profile_image) {
-                  setImageUri(getFullImageUrl(hostData.profile_image));
-                } else {
-                  setImageUri(null);
-                }
-              }}
-            >
-              <Text style={styles.editButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              {editMode ? (
+                <View style={styles.nameInputContainer}>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={formData.name}
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
+                    placeholder="Enter your name"
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.profileName}>{hostData?.name || "Host"}</Text>
+                  <View style={styles.profileBadge}>
+                    <Ionicons name="star" size={14} color={COLORS.accent} />
+                    <Text style={styles.profileBadgeText}>@{hostData?.username}</Text>
+                  </View>
+                  <View style={styles.idBadge}>
+                    <Ionicons name="id-card" size={12} color={COLORS.textLight} />
+                    <Text style={styles.idBadgeText}>ID: {hostData?.id}</Text>
+                  </View>
+                </>
+              )}
 
-        {/* Stats Row */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <FontAwesome name="star" size={20} color="#f1c40f" />
-            <Text style={styles.statValue}>{hostData?.ratings || 0}</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-          
-          <View style={styles.statDivider} />
-          
-          <View style={styles.statItem}>
-            <FontAwesome name="users" size={20} color="#FF7675" />
-            <Text style={styles.statValue}>{hostData?.referral_points || 0}</Text>
-            <Text style={styles.statLabel}>Referrals</Text>
-          </View>
-          
-          <View style={styles.statDivider} />
-          
-          <View style={styles.statItem}>
-            <FontAwesome name="crown" size={20} color="#9b59b6" />
-            <Text style={styles.statValue}>{hostData?.subscription?.days_remaining || hostData?.subscription_days_remaining || 0}</Text>
-            <Text style={styles.statLabel}>Days Left</Text>
-          </View>
-        </View>
+              <View style={styles.profileActions}>
+                <TouchableOpacity
+                  style={[styles.profileActionButton, editMode && { backgroundColor: COLORS.green }]}
+                  onPress={() => {
+                    if (editMode) {
+                      updateProfile();
+                    } else {
+                      setEditMode(true);
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  <Ionicons 
+                    name={editMode ? "checkmark" : "pencil"} 
+                    size={16} 
+                    color={COLORS.surface} 
+                  />
+                  <Text style={styles.profileActionText}>
+                    {saving ? "Saving..." : editMode ? "Save Changes" : "Edit Profile"}
+                  </Text>
+                </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Personal Details</Text>
-        <View style={styles.infoCard}>
-          {/* Always show email, mobile, address as read-only */}
-          <View style={styles.detailRow}>
-            <FontAwesome name="envelope" size={16} color="#FF7675" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Email: {hostData?.email || "N/A"}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <FontAwesome name="phone" size={16} color="#FF7675" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Mobile: {hostData?.mobile || "N/A"}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <FontAwesome name="map-marker" size={16} color="#FF7675" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Address: {hostData?.address || "Not set"}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <FontAwesome name="birthday-cake" size={16} color="#FF7675" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Date of Birth: {formatDate(hostData?.dob)}</Text>
-          </View>
-        </View>
+                {editMode && (
+                  <TouchableOpacity
+                    style={styles.profileCancelButton}
+                    onPress={() => {
+                      setEditMode(false);
+                      setFormData({ name: hostData?.name || "" });
+                      if (hostData?.profile_image_url) {
+                        setImageUri(hostData.profile_image_url);
+                      } else if (hostData?.profile_image) {
+                        setImageUri(getFullImageUrl(hostData.profile_image));
+                      } else {
+                        setImageUri(null);
+                      }
+                    }}
+                  >
+                    <Ionicons name="close" size={16} color={COLORS.textLight} />
+                    <Text style={styles.profileCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </Animated.View>
 
-        <Text style={styles.sectionTitle}>Account Details</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.detailRow}>
-            <FontAwesome name="gift" size={16} color="#9b59b6" style={styles.detailIcon} />
-            <View style={styles.detailContent}>
-              <Text style={styles.infoText}>Referral Code</Text>
-              <Text style={styles.referralCode}>{hostData?.referral_code}</Text>
+          {/* Stats Section */}
+          <View style={styles.statsSection}>
+            <StatCard 
+              number={hostData?.ratings || 0} 
+              label="Rating" 
+              icon="star" 
+              color={COLORS.accent} 
+            />
+            <StatCard 
+              number={hostData?.referral_points || 0} 
+              label="Referrals" 
+              icon="people" 
+              color={COLORS.purple} 
+            />
+            <StatCard 
+              number={hostData?.subscription?.days_remaining || hostData?.subscription_days_remaining || 0} 
+              label="Days Left" 
+              icon="calendar" 
+              color={COLORS.teal} 
+            />
+          </View>
+
+          {/* Personal Details */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Ionicons name="person-circle" size={22} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoGrid}>
+              <InfoCard 
+                icon="mail" 
+                label="Email" 
+                value={hostData?.email} 
+                color={COLORS.primary}
+              />
+              <InfoCard 
+                icon="call" 
+                label="Mobile" 
+                value={hostData?.mobile} 
+                color={COLORS.purple}
+              />
+              <InfoCard 
+                icon="gift" 
+                label="Referral Code" 
+                value={hostData?.referral_code} 
+                color={COLORS.teal}
+              />
+              <InfoCard 
+                icon="map" 
+                label="Address" 
+                value={hostData?.address || "Not set"} 
+                color={COLORS.orange}
+              />
+              <InfoCard 
+                icon="cake" 
+                label="Date of Birth" 
+                value={formatDate(hostData?.dob)} 
+                color={COLORS.pink}
+              />
             </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <FontAwesome name="shield" size={16} color="#FF7675" style={styles.detailIcon} />
-            <View style={styles.detailContent}>
-              <Text style={styles.infoText}>KYC Status</Text>
-              <View style={styles.kycStatusContainer}>
-                <View
-                  style={[
-                    styles.kycStatusDot,
-                    { backgroundColor: getKYCStatusColor(hostData?.kyc_status) },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.kycStatusText,
-                    { color: getKYCStatusColor(hostData?.kyc_status) },
-                  ]}
-                >
-                  {hostData?.kyc_status?.toUpperCase() || "N/A"}
+          {/* Account Status */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>ACCOUNT STATUS</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusCard}>
+              <View style={styles.statusPattern} />
+              
+              <View style={styles.statusRow}>
+                <View style={[styles.statusIndicator, { backgroundColor: hostData?.status === 'active' ? COLORS.green : COLORS.textLight }]} />
+                <View>
+                  <Text style={styles.statusLabel}>Account Status</Text>
+                  <Text style={styles.statusValue}>
+                    {hostData?.status === 'active' ? 'Active' : hostData?.status || 'N/A'}
+                  </Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: COLORS.green + '15' }]}>
+                  <Text style={[styles.statusBadgeText, { color: COLORS.green }]}>Verified</Text>
+                </View>
+              </View>
+
+              <View style={styles.statusDivider} />
+
+              <View style={styles.statusRow}>
+                <View style={[styles.statusIndicator, { backgroundColor: COLORS.primary }]} />
+                <View>
+                  <Text style={styles.statusLabel}>Account Created</Text>
+                  <Text style={styles.statusValue}>
+                    {formatDate(hostData?.created_at)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statusDivider} />
+
+              <View style={styles.statusRow}>
+                <View style={[styles.statusIndicator, { backgroundColor: getKYCStatusColor(hostData?.kyc_status) }]} />
+                <View>
+                  <Text style={styles.statusLabel}>KYC Status</Text>
+                  <Text style={[styles.statusValue, { color: getKYCStatusColor(hostData?.kyc_status) }]}>
+                    {hostData?.kyc_status?.toUpperCase() || "N/A"}
+                  </Text>
+                </View>
+                {(hostData?.kyc_status === "pending" || hostData?.kyc_status === "rejected") && (
+                  <TouchableOpacity 
+                    style={[styles.kycButton, { backgroundColor: COLORS.primary }]}
+                    onPress={uploadKYCDocument}
+                    disabled={uploading}
+                  >
+                    <Text style={styles.kycButtonText}>
+                      {uploading ? "Uploading..." : "Upload KYC"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {hostData?.kyc_document_url && (
+                <TouchableOpacity style={styles.kycDocumentRow} onPress={viewKYCDocument}>
+                  <Ionicons name="document-text" size={18} color={COLORS.primary} />
+                  <Text style={styles.kycDocumentText}>View KYC Document</Text>
+                  <Ionicons name="eye-outline" size={16} color={COLORS.primary} style={styles.kycDocumentIcon} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Subscription Info */}
+          {hostData?.subscription_status === "active" && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Ionicons name="crown" size={22} color={COLORS.primary} />
+                  <Text style={styles.sectionTitle}>SUBSCRIPTION</Text>
+                </View>
+              </View>
+
+              <View style={[styles.subscriptionCard, { borderLeftColor: COLORS.primary }]}>
+                <View style={styles.subscriptionHeader}>
+                  <Ionicons name="crown" size={20} color={COLORS.primary} />
+                  <Text style={styles.subscriptionTitle}>Active Subscription</Text>
+                </View>
+                <Text style={styles.subscriptionDetails}>
+                  Plan ID: {hostData.subscription_plan_id}
+                </Text>
+                <Text style={styles.subscriptionDays}>
+                  Days Remaining: {hostData.subscription_days_remaining || 
+                    Math.ceil((new Date(hostData.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24))}
+                </Text>
+                <Text style={styles.subscriptionDates}>
+                  {formatDate(hostData.subscription_start_date)} - {formatDate(hostData.subscription_end_date)}
                 </Text>
               </View>
             </View>
-            {(hostData?.kyc_status === "pending" || hostData?.kyc_status === "rejected") && (
-              <TouchableOpacity 
-                style={styles.kycButton}
-                onPress={uploadKYCDocument}
-                disabled={uploading}
-              >
-                <Text style={styles.kycButtonText}>
-                  {uploading ? "Uploading..." : "Upload KYC"}
-                </Text>
-              </TouchableOpacity>
-            )}
+          )}
+
+          {/* Quick Settings */}
+          {!editMode && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Ionicons name="settings" size={22} color={COLORS.primary} />
+                  <Text style={styles.sectionTitle}>QUICK SETTINGS</Text>
+                </View>
+              </View>
+
+              <View style={styles.settingsCard}>
+                <SettingItem 
+                  icon="lock-closed"
+                  title="Change Password"
+                  description="Update your password"
+                  color={COLORS.primary}
+                  onPress={() => Alert.alert("Coming Soon", "Change password feature coming soon!")}
+                />
+                <SettingItem 
+                  icon="wallet"
+                  title="Wallet"
+                  description="Manage your earnings"
+                  color={COLORS.purple}
+                  onPress={() => Alert.alert("Coming Soon", "Wallet feature coming soon!")}
+                />
+                <SettingItem 
+                  icon="help-circle"
+                  title="Help & Support"
+                  description="Get help with your account"
+                  color={COLORS.teal}
+                  onPress={() => Linking.openURL('mailto:support@tambolatime.co.in')}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <View style={[styles.logoutIcon, { backgroundColor: COLORS.red + '20' }]}>
+              <Ionicons name="log-out" size={22} color={COLORS.red} />
+            </View>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Version 1.0.0
+            </Text>
+            <Text style={styles.footerSubtext}>
+              © {new Date().getFullYear()} Tambola Time
+            </Text>
           </View>
 
-          {hostData?.kyc_document_url && (
-            <View style={styles.detailRow}>
-              <FontAwesome name="file" size={16} color="#FF7675" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.infoText}>KYC Document</Text>
-                <TouchableOpacity onPress={viewKYCDocument}>
-                  <Text style={styles.kycDocumentText}>View Document</Text>
+          <View style={styles.bottomSpace} />
+        </ScrollView>
+
+        {/* Image Selection Modal */}
+        <Modal visible={imageModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Update Profile Picture</Text>
+                <TouchableOpacity onPress={() => setImageModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.textDark} />
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
 
-          <View style={styles.detailRow}>
-            <FontAwesome name="calendar" size={16} color="#2ecc71" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Account Created: {formatDate(hostData?.created_at)}</Text>
-          </View>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => handleImagePick("camera")}
+              >
+                <View style={[styles.modalOptionIcon, { backgroundColor: COLORS.primary + '15' }]}>
+                  <Ionicons name="camera" size={24} color={COLORS.primary} />
+                </View>
+                <View>
+                  <Text style={styles.modalOptionTitle}>Take Photo</Text>
+                  <Text style={styles.modalOptionDescription}>Use your camera to take a new photo</Text>
+                </View>
+              </TouchableOpacity>
 
-          <View style={styles.detailRow}>
-            <FontAwesome name="circle" size={16} color="#2ecc71" style={styles.detailIcon} />
-            <Text style={styles.infoText}>Status: {hostData?.status || "N/A"}</Text>
-          </View>
-        </View>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => handleImagePick("gallery")}
+              >
+                <View style={[styles.modalOptionIcon, { backgroundColor: COLORS.purple + '15' }]}>
+                  <Ionicons name="images" size={24} color={COLORS.purple} />
+                </View>
+                <View>
+                  <Text style={styles.modalOptionTitle}>Choose from Gallery</Text>
+                  <Text style={styles.modalOptionDescription}>Select a photo from your gallery</Text>
+                </View>
+              </TouchableOpacity>
 
-        {/* Subscription Info */}
-        {hostData?.subscription_status === "active" && (
-          <>
-            <Text style={styles.sectionTitle}>Subscription</Text>
-            <View style={[styles.infoCard, { backgroundColor: "#FFEDED", borderColor: "#FFD6D6" }]}>
-              <View style={styles.detailRow}>
-                <FontAwesome name="crown" size={18} color="#FF7675" style={styles.detailIcon} />
-                <Text style={[styles.infoText, { color: "#FF5252", fontWeight: "700" }]}>
-                  Active Subscription
-                </Text>
-              </View>
-              <Text style={styles.subscriptionDetails}>
-                Plan ID: {hostData.subscription_plan_id} | 
-                Days Remaining: {hostData.subscription_days_remaining || 
-                  Math.ceil((new Date(hostData.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24))}
-              </Text>
-              <Text style={styles.subscriptionDates}>
-                Valid from {formatDate(hostData.subscription_start_date)} to {formatDate(hostData.subscription_end_date)}
-              </Text>
-            </View>
-          </>
-        )}
-
-        {!editMode && (
-          <>
-            <Text style={styles.sectionTitle}>Settings</Text>
-            <TouchableOpacity style={styles.optionCard}>
-              <FontAwesome name="lock" size={16} color="#FF7675" style={styles.optionIcon} />
-              <Text style={styles.optionText}>Change Password</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        <View style={styles.footerSpace} />
-      </ScrollView>
-
-      {/* Profile Image Selection Modal */}
-      <Modal
-        visible={imageModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setImageModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Profile Picture</Text>
-            
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => handleImagePick("camera")}
-            >
-              <FontAwesome name="camera" size={20} color="#fff" style={styles.modalOptionIcon} />
-              <Text style={styles.modalOptionText}>Take Photo</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => handleImagePick("gallery")}
-            >
-              <FontAwesome name="photo" size={20} color="#fff" style={styles.modalOptionIcon} />
-              <Text style={styles.modalOptionText}>Choose from Gallery</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.modalOption, { backgroundColor: "#ccc" }]}
-              onPress={() => setImageModalVisible(false)}
-            >
-              <FontAwesome name="close" size={20} color="#333" style={styles.modalOptionIcon} />
-              <Text style={[styles.modalOptionText, { color: "#333" }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* KYC Document View Modal */}
-      <Modal
-        visible={kycModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setKycModalVisible(false)}
-      >
-        <View style={styles.kycModalContainer}>
-          <View style={styles.kycModalContent}>
-            <View style={styles.kycModalHeader}>
-              <Text style={styles.kycModalTitle}>KYC Document</Text>
-              <TouchableOpacity onPress={() => setKycModalVisible(false)}>
-                <FontAwesome name="close" size={24} color="#2c3e50" />
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setImageModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            
-            {hostData?.kyc_document_url && (
-              <View style={styles.kycImageContainer}>
-                <Image
-                  source={{ uri: hostData.kyc_document_url }}
-                  style={styles.kycImage}
-                  resizeMode="contain"
-                  onError={() => {
-                    Alert.alert("Error", "Failed to load image. The document might be a PDF or corrupted.");
-                    setKycModalVisible(false);
-                  }}
-                />
+          </View>
+        </Modal>
+
+        {/* KYC Document View Modal */}
+        <Modal
+          visible={kycModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setKycModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>KYC Document</Text>
+                <TouchableOpacity onPress={() => setKycModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.textDark} />
+                </TouchableOpacity>
               </View>
-            )}
-            
-            <View style={styles.kycModalFooter}>
+              
+              {hostData?.kyc_document_url && (
+                <View style={styles.kycImageContainer}>
+                  <Image
+                    source={{ uri: hostData.kyc_document_url }}
+                    style={styles.kycImage}
+                    resizeMode="contain"
+                    onError={() => {
+                      Alert.alert("Error", "Failed to load image. The document might be a PDF or corrupted.");
+                      setKycModalVisible(false);
+                    }}
+                  />
+                </View>
+              )}
+              
               <TouchableOpacity
-                style={styles.kycModalButton}
+                style={[styles.kycModalButton, { backgroundColor: COLORS.primary }]}
                 onPress={() => setKycModalVisible(false)}
               >
                 <Text style={styles.kycModalButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F6F8FA", padding: 18 },
-  header: { alignItems: "center", marginTop: 20 },
-  profilePic: { width: 90, height: 90, borderRadius: 45 },
-  editImageBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#FF7675",
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 12,
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  editImageText: { color: "#fff", fontSize: 12, fontWeight: "bold" },
-  userName: { fontSize: 20, fontWeight: "800", marginTop: 10, marginBottom: 5, color: "#2c3e50" },
-  userNameInput: {
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.textLight,
+    fontSize: 14,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  errorTitle: {
     fontSize: 20,
-    fontWeight: "800",
-    marginTop: 10,
-    marginBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: "#FF7675",
-    width: "60%",
-    textAlign: "center",
-    paddingVertical: 5,
-    color: "#2c3e50",
-  },
-  usernameContainer: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  username: { fontSize: 13, color: "#7f8c8d", marginBottom: 2 },
-  idContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  idLabel: { fontSize: 12, color: "#7f8c8d" },
-  idValue: { fontSize: 13, fontWeight: "700", color: "#2c3e50" },
-  editButton: {
-    backgroundColor: "#FF7675",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 5,
-  },
-  editButtonText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
-  statsCard: {
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 16,
+    fontWeight: '700',
+    color: COLORS.textDark,
     marginTop: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
+    marginBottom: 10,
+    textAlign: 'center',
   },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#2c3e50",
-    marginTop: 5,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#7f8c8d",
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#ecf0f1",
-  },
-  sectionTitle: { marginTop: 25, fontSize: 18, fontWeight: "800", color: "#333" },
-  infoCard: {
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 16,
-    marginTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 8,
-  },
-  detailIcon: {
-    marginRight: 10,
-    width: 24,
-    textAlign: "center",
-  },
-  detailContent: {
-    flex: 1,
-  },
-  infoText: { fontSize: 14, color: "#777" },
-  referralCode: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#9b59b6",
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-  kycStatusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  kycStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  kycStatusText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  kycButton: {
-    backgroundColor: "#FF7675",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  kycButtonText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  kycDocumentText: {
+  errorMessage: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#FF7675",
-    textDecorationLine: "underline",
-    marginTop: 2,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 30,
   },
-  inputContainer: { marginVertical: 8 },
-  inputLabel: { fontSize: 14, color: "#555", marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  subscriptionDetails: {
-    fontSize: 13,
-    color: "#5d4037",
-    marginTop: 4,
-    marginLeft: 34,
-  },
-  subscriptionDates: {
-    fontSize: 12,
-    color: "#8d6e63",
-    marginTop: 2,
-    marginLeft: 34,
-  },
-  optionCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 14,
-    marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  optionIcon: {
-    marginRight: 10,
-  },
-  optionText: { fontSize: 15, fontWeight: "700", color: "#FF7675" },
-  logoutBtn: {
-    backgroundColor: "#FF7675",
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 30,
     paddingVertical: 12,
-    borderRadius: 14,
-    marginTop: 30,
-    marginBottom: 50,
-    alignItems: "center",
+    borderRadius: 25,
   },
-  logoutText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  
-  // Profile Image Modal
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    width: "80%",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-  },
-  modalOption: {
-    backgroundColor: "#FF7675",
-    padding: 15,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-    marginVertical: 5,
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  modalOptionIcon: {
-    marginRight: 10,
-  },
-  modalOptionText: {
-    color: "#fff",
+  retryButtonText: {
+    color: COLORS.surface,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-  
-  // KYC Document Modal
-  kycModalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  kycModalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    width: "95%",
-    maxHeight: "90%",
-    overflow: "hidden",
-  },
-  kycModalHeader: {
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    zIndex: 10,
   },
-  kycModalTitle: {
-    fontSize: 18,
+  headerTitle: {
+    color: COLORS.surface,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#2c3e50",
   },
+  headerSubtitle: {
+    color: COLORS.surface,
+    fontSize: 12,
+    opacity: 0.9,
+    marginTop: 2,
+  },
+  notification: {
+    position: "relative",
+  },
+  
+  // Background Elements
+  backgroundCircle1: {
+    position: 'absolute',
+    top: 100,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: COLORS.primary + '10',
+    zIndex: 0,
+  },
+  backgroundCircle2: {
+    position: 'absolute',
+    bottom: 200,
+    left: -60,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: COLORS.purple + '08',
+    zIndex: 0,
+  },
+  backgroundCircle3: {
+    position: 'absolute',
+    top: '50%',
+    right: 20,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: COLORS.orange + '05',
+    zIndex: 0,
+  },
+
+  // Profile Hero Section
+  profileHeroSection: {
+    marginTop: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: 'relative',
+    overflow: 'hidden',
+    zIndex: 2,
+  },
+  profileHeroContent: {
+    alignItems: 'center',
+  },
+  profileImageContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: COLORS.surface,
+    backgroundColor: COLORS.background,
+  },
+  editImageBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: 4,
+  },
+  profileBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+    marginBottom: 4,
+  },
+  profileBadgeText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  idBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 16,
+  },
+  idBadgeText: {
+    fontSize: 11,
+    color: COLORS.textLight,
+  },
+  nameInputContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  nameInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    width: '100%',
+  },
+  profileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profileActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  profileActionText: {
+    color: COLORS.surface,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  profileCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  profileCancelText: {
+    color: COLORS.textLight,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  // Stats Section
+  statsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    gap: 8,
+    zIndex: 2,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    textAlign: 'center',
+  },
+
+  // Section
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    zIndex: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textDark,
+  },
+
+  // Info Grid
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  infoCard: {
+    width: (width - 40) / 2,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  infoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoContent: {
+    gap: 2,
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+
+  // Status Card
+  statusCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  statusPattern: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.primary + '05',
+    borderBottomLeftRadius: 50,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusLabel: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginBottom: 2,
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textDark,
+  },
+  statusBadge: {
+    marginLeft: 'auto',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 12,
+  },
+  kycButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  kycButtonText: {
+    color: COLORS.surface,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  kycDocumentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  kycDocumentText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  kycDocumentIcon: {
+    marginLeft: 'auto',
+  },
+
+  // Subscription Card
+  subscriptionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderLeftWidth: 4,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  subscriptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  subscriptionDetails: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginBottom: 4,
+  },
+  subscriptionDays: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginBottom: 4,
+  },
+  subscriptionDates: {
+    fontSize: 11,
+    color: COLORS.textLight,
+  },
+
+  // Settings Card
+  settingsCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginBottom: 2,
+  },
+  settingDescription: {
+    fontSize: 11,
+    color: COLORS.textLight,
+  },
+
+  // Logout Button
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: COLORS.red,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logoutIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: COLORS.red,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  // Footer
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  footerSubtext: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    textAlign: 'center',
+  },
+  bottomSpace: {
+    height: 20,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textDark,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 12,
+  },
+  modalOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginBottom: 2,
+  },
+  modalOptionDescription: {
+    fontSize: 11,
+    color: COLORS.textLight,
+  },
+  modalCancelButton: {
+    backgroundColor: 'transparent',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: 8,
+  },
+  modalCancelText: {
+    color: COLORS.textLight,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+
+  // KYC Image Modal
   kycImageContainer: {
-    width: "100%",
+    width: '100%',
     height: 400,
     padding: 10,
   },
   kycImage: {
-    width: "100%",
-    height: "100%",
-  },
-  kycModalFooter: {
-    padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    width: '100%',
+    height: '100%',
   },
   kycModalButton: {
-    backgroundColor: "#FF7675",
+    marginTop: 16,
     paddingVertical: 12,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
   },
   kycModalButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
-    fontWeight: "600",
-  },
-  
-  footerSpace: {
-    height: 30,
+    fontWeight: '600',
   },
 });
 

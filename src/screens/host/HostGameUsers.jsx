@@ -10,12 +10,37 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  Animated,
+  Easing,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 const { width } = Dimensions.get("window");
+
+// Updated color palette to match other components
+const PRIMARY_COLOR = "#4facfe";
+const ACCENT_COLOR = "#ff9800";
+const BACKGROUND_COLOR = "#f5f8ff";
+const WHITE = "#FFFFFF";
+const TEXT_DARK = "#333333";
+const TEXT_LIGHT = "#777777";
+const BORDER_COLOR = "#EEEEEE";
+const SUCCESS_COLOR = "#4CAF50";
+const ERROR_COLOR = "#E74C3C";
+const WARNING_COLOR = "#FF9800";
+const INFO_COLOR = "#4facfe";
+const SECTION_BG = "#F8F9FA";
+
+// Payment status colors
+const PAYMENT_STATUS = {
+  paid: { bg: "rgba(76, 175, 80, 0.1)", text: SUCCESS_COLOR, icon: "checkmark-circle" },
+  pending: { bg: "rgba(255, 152, 0, 0.1)", text: WARNING_COLOR, icon: "time-outline" },
+  failed: { bg: "rgba(231, 76, 60, 0.1)", text: ERROR_COLOR, icon: "close-circle" },
+  default: { bg: "rgba(96, 125, 139, 0.1)", text: "#607D8B", icon: "help-circle-outline" },
+};
 
 const HostGameUsers = ({ route, navigation }) => {
   const { gameId, gameName } = route.params;
@@ -25,9 +50,49 @@ const HostGameUsers = ({ route, navigation }) => {
   const [summary, setSummary] = useState(null);
   const [users, setUsers] = useState([]);
 
+  // Animation values
+  const [spinAnim] = useState(new Animated.Value(0));
+  const [pulseAnim] = useState(new Animated.Value(1));
+
   useEffect(() => {
     fetchGameUsers();
+    startAnimations();
   }, [gameId]);
+
+  const startAnimations = () => {
+    // Rotating animation for decorative elements
+    Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Pulse animation for summary cards
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -71,78 +136,61 @@ const HostGameUsers = ({ route, navigation }) => {
     }
   };
 
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "#4CAF50";
-      case "pending":
-        return "#FF9800";
-      case "failed":
-        return "#FF7675";
-      default:
-        return "#607D8B";
-    }
+  const getPaymentStatusStyle = (status) => {
+    return PAYMENT_STATUS[status] || PAYMENT_STATUS.default;
   };
 
-  const renderUserCard = (user) => (
-    <View key={user.user_id} style={styles.userCard}>
-      <View style={styles.userHeader}>
-        <View style={styles.userAvatar}>
-          <Text style={styles.avatarText}>
-            {user.user_name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.user_name}</Text>
-          <Text style={styles.username}>@{user.username}</Text>
-        </View>
-        <View
-          style={[
-            styles.paymentBadge,
-            { backgroundColor: getPaymentStatusColor(user.payment_status) + "15" },
-          ]}
-        >
-          <Text
-            style={[
-              styles.paymentText,
-              { color: getPaymentStatusColor(user.payment_status) },
-            ]}
-          >
-            {user.payment_status.charAt(0).toUpperCase() + user.payment_status.slice(1)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.userDetails}>
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="mail-outline" size={14} color="#666" />
-            <Text style={styles.detailText}>{user.email}</Text>
+  const renderUserCard = (user) => {
+    const statusStyle = getPaymentStatusStyle(user.payment_status);
+    
+    return (
+      <View key={user.user_id} style={styles.userCard}>
+        <View style={styles.userHeader}>
+          <View style={[styles.userAvatar, { backgroundColor: PRIMARY_COLOR }]}>
+            <Text style={styles.avatarText}>
+              {user.user_name.charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="call-outline" size={14} color="#666" />
-            <Text style={styles.detailText}>{user.mobile}</Text>
+          
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user.user_name}</Text>
+            <Text style={styles.username}>@{user.username}</Text>
+            <View style={styles.userContactRow}>
+              <View style={styles.contactItem}>
+                <Ionicons name="mail-outline" size={12} color={TEXT_LIGHT} />
+                <Text style={styles.contactText}>{user.email}</Text>
+              </View>
+              <View style={styles.contactItem}>
+                <Ionicons name="call-outline" size={12} color={TEXT_LIGHT} />
+                <Text style={styles.contactText}>{user.mobile}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.paymentBadge, { backgroundColor: statusStyle.bg }]}>
+            <Ionicons name={statusStyle.icon} size={12} color={statusStyle.text} />
+            <Text style={[styles.paymentText, { color: statusStyle.text }]}>
+              {user.payment_status.charAt(0).toUpperCase() + user.payment_status.slice(1)}
+            </Text>
           </View>
         </View>
 
-        {/* 2x2 Grid Layout */}
-        <View style={styles.statsContainer}>
+        {/* Stats Grid - 2x2 Layout */}
+        <View style={styles.statsGrid}>
           {/* Row 1 */}
           <View style={styles.statsRow}>
-            {/* Request */}
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="receipt-outline" size={18} color="#FF7675" />
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(231, 76, 60, 0.1)' }]}>
+                <Ionicons name="receipt-outline" size={18} color={ERROR_COLOR} />
               </View>
               <View style={styles.statContent}>
                 <Text style={styles.statValue}>{user.total_requests}</Text>
-                <Text style={styles.statLabel}>Request</Text>
+                <Text style={styles.statLabel}>Requests</Text>
               </View>
             </View>
 
-            {/* Requested */}
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(156, 39, 176, 0.1)' }]}>
                 <Ionicons name="ticket-outline" size={18} color="#9C27B0" />
               </View>
               <View style={styles.statContent}>
@@ -154,10 +202,9 @@ const HostGameUsers = ({ route, navigation }) => {
 
           {/* Row 2 */}
           <View style={styles.statsRow}>
-            {/* Approved */}
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
+                <Ionicons name="checkmark-circle-outline" size={18} color={SUCCESS_COLOR} />
               </View>
               <View style={styles.statContent}>
                 <Text style={styles.statValue}>{user.approved_tickets}</Text>
@@ -165,39 +212,53 @@ const HostGameUsers = ({ route, navigation }) => {
               </View>
             </View>
 
-            {/* Amount */}
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="cash-outline" size={18} color="#FF9800" />
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(255, 152, 0, 0.1)' }]}>
+                <Ionicons name="cash-outline" size={18} color={WARNING_COLOR} />
               </View>
               <View style={styles.statContent}>
                 <Text style={styles.statValue}>₹{user.paid_amount}</Text>
-                <Text style={styles.statLabel}>Amount</Text>
+                <Text style={styles.statLabel}>Paid</Text>
               </View>
             </View>
           </View>
         </View>
 
+        {/* Amount Summary */}
         <View style={styles.amountRow}>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>Approved Amount</Text>
-            <Text style={styles.amountValue}>₹{user.total_amount_approved}</Text>
+            <View style={styles.amountValueContainer}>
+              <Ionicons name="cash-outline" size={14} color={TEXT_DARK} />
+              <Text style={styles.amountValue}>₹{user.total_amount_approved}</Text>
+            </View>
           </View>
+          
+          <View style={styles.amountDivider} />
+          
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>Paid Amount</Text>
-            <Text style={[styles.amountValue, { color: getPaymentStatusColor(user.payment_status) }]}>
-              ₹{user.paid_amount}
-            </Text>
+            <View style={styles.amountValueContainer}>
+              <Ionicons name="checkmark-circle" size={14} color={statusStyle.text} />
+              <Text style={[styles.amountValue, { color: statusStyle.text }]}>
+                ₹{user.paid_amount}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF7675" />
+        <View style={styles.loadingIconWrapper}>
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <MaterialIcons name="people" size={40} color={PRIMARY_COLOR} />
+          </Animated.View>
+        </View>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} style={styles.loadingSpinner} />
         <Text style={styles.loadingText}>Loading players list...</Text>
       </View>
     );
@@ -207,7 +268,9 @@ const HostGameUsers = ({ route, navigation }) => {
     return (
       <View style={styles.errorContainer}>
         <View style={styles.errorContent}>
-          <Ionicons name="alert-circle-outline" size={80} color="#FF7675" />
+          <View style={styles.errorIconWrapper}>
+            <Ionicons name="alert-circle" size={60} color={ERROR_COLOR} />
+          </View>
           <Text style={styles.errorTitle}>Unable to Load Players</Text>
           <Text style={styles.errorMessage}>{error}</Text>
           <TouchableOpacity
@@ -225,24 +288,38 @@ const HostGameUsers = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#FF7675" barStyle="light-content" />
+      <StatusBar backgroundColor={PRIMARY_COLOR} barStyle="light-content" />
+
+      {/* Decorative background elements */}
+      <View style={styles.backgroundPattern}>
+        <Animated.View style={[styles.decorCircle1, { transform: [{ rotate: spin }] }]} />
+        <Animated.View style={[styles.decorCircle2, { transform: [{ rotate: spin }] }]} />
+      </View>
 
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {gameName}
-          </Text>
-          <Text style={styles.headerSubtitle}>Players List</Text>
+        <View style={styles.headerPattern}>
+          <Animated.View style={[styles.headerShine]} />
         </View>
-        <TouchableOpacity style={styles.refreshButton} onPress={fetchGameUsers}>
-          <Ionicons name="refresh" size={20} color="#FFF" />
-        </TouchableOpacity>
+
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {gameName}
+            </Text>
+            <Text style={styles.headerSubtitle}>Players List</Text>
+          </View>
+          
+          <TouchableOpacity style={styles.refreshButton} onPress={fetchGameUsers}>
+            <Ionicons name="refresh" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -252,58 +329,73 @@ const HostGameUsers = ({ route, navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#FF7675"
-            colors={["#FF7675"]}
+            tintColor={PRIMARY_COLOR}
+            colors={[PRIMARY_COLOR]}
           />
         }
         contentContainerStyle={styles.scrollContent}
       >
         {summary && (
-          <View style={styles.summaryContainer}>
-            <Text style={styles.summaryTitle}>Game Summary</Text>
+          <Animated.View style={[styles.summaryContainer, { transform: [{ scale: pulseAnim }] }]}>
+            <View style={styles.summaryHeader}>
+              <Ionicons name="stats-chart" size={20} color={PRIMARY_COLOR} />
+              <Text style={styles.summaryTitle}>Game Summary</Text>
+            </View>
+            
             <View style={styles.summaryGrid}>
               <View style={styles.summaryCard}>
-                <Ionicons name="people-outline" size={24} color="#FF7675" />
+                <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(79, 172, 254, 0.1)' }]}>
+                  <Ionicons name="people-outline" size={24} color={PRIMARY_COLOR} />
+                </View>
                 <Text style={styles.summaryCount}>{summary.total_users}</Text>
                 <Text style={styles.summaryLabel}>Total Players</Text>
               </View>
 
               <View style={styles.summaryCard}>
-                <Ionicons name="ticket-outline" size={24} color="#9C27B0" />
+                <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(156, 39, 176, 0.1)' }]}>
+                  <Ionicons name="ticket-outline" size={24} color="#9C27B0" />
+                </View>
                 <Text style={styles.summaryCount}>{summary.total_approved_tickets}</Text>
                 <Text style={styles.summaryLabel}>Approved Tickets</Text>
               </View>
 
               <View style={styles.summaryCard}>
-                <Ionicons name="cash-outline" size={24} color="#4CAF50" />
+                <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
+                  <Ionicons name="cash-outline" size={24} color={SUCCESS_COLOR} />
+                </View>
                 <Text style={styles.summaryCount}>₹{summary.total_paid_amount}</Text>
                 <Text style={styles.summaryLabel}>Total Revenue</Text>
               </View>
 
               <View style={styles.summaryCard}>
-                <Ionicons name="stats-chart-outline" size={24} color="#FF9800" />
+                <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(255, 152, 0, 0.1)' }]}>
+                  <Ionicons name="stats-chart-outline" size={24} color={WARNING_COLOR} />
+                </View>
                 <Text style={styles.summaryCount}>{summary.average_tickets_per_user}</Text>
-                <Text style={styles.summaryLabel}>Avg Tickets/Player</Text>
+                <Text style={styles.summaryLabel}>Avg/Player</Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         <View style={styles.listHeader}>
           <View style={styles.listHeaderLeft}>
-            <Ionicons name="list-outline" size={20} color="#333" />
+            <View style={styles.listIconContainer}>
+              <Ionicons name="list-outline" size={18} color={PRIMARY_COLOR} />
+            </View>
             <Text style={styles.listTitle}>Players ({users.length})</Text>
           </View>
-          <TouchableOpacity
+          
+          {/* <TouchableOpacity
             style={styles.exportButton}
             onPress={() => {
               // TODO: Implement export functionality
               alert("Export feature coming soon!");
             }}
           >
-            <Ionicons name="download-outline" size={16} color="#FF7675" />
+            <Ionicons name="download-outline" size={16} color={PRIMARY_COLOR} />
             <Text style={styles.exportButtonText}>Export</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <View style={styles.usersContainer}>
@@ -311,7 +403,7 @@ const HostGameUsers = ({ route, navigation }) => {
             <>
               {users.map(renderUserCard)}
               <View style={styles.listFooter}>
-                <Ionicons name="checkmark-done" size={18} color="#9CA3AF" />
+                <Ionicons name="checkmark-circle" size={16} color={SUCCESS_COLOR} />
                 <Text style={styles.listFooterText}>
                   {users.length} player{users.length !== 1 ? "s" : ""} found
                 </Text>
@@ -319,14 +411,8 @@ const HostGameUsers = ({ route, navigation }) => {
             </>
           ) : (
             <View style={styles.emptyState}>
-              <View style={styles.emptyIllustration}>
-                <Ionicons
-                  name="people-outline"
-                  size={80}
-                  color="#D1D5DB"
-                />
-                <View style={styles.emptyDot} />
-                <View style={[styles.emptyDot, styles.emptyDot2]} />
+              <View style={styles.emptyIconWrapper}>
+                <Ionicons name="people-outline" size={70} color={BORDER_COLOR} />
               </View>
               <Text style={styles.emptyStateTitle}>No Players Yet</Text>
               <Text style={styles.emptyStateText}>
@@ -338,9 +424,7 @@ const HostGameUsers = ({ route, navigation }) => {
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh" size={18} color="#FFF" />
-                <Text style={styles.emptyStateButtonText}>
-                  Refresh
-                </Text>
+                <Text style={styles.emptyStateButtonText}>Refresh</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -355,7 +439,7 @@ const HostGameUsers = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: BACKGROUND_COLOR,
   },
   container: {
     flex: 1,
@@ -363,13 +447,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
+    overflow: 'hidden',
+  },
+  decorCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -30,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(79, 172, 254, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(79, 172, 254, 0.1)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 152, 0, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 152, 0, 0.1)',
+  },
   header: {
-    backgroundColor: "#FF7675",
+    backgroundColor: PRIMARY_COLOR,
     paddingTop: 20,
     paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     shadowColor: "#000",
@@ -377,14 +489,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
+  headerPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  headerShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 1,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  headerTextContainer: {
     flex: 1,
-    flexDirection: "column",
   },
   headerTitle: {
     fontSize: 20,
@@ -405,16 +545,99 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: BACKGROUND_COLOR,
+  },
+  loadingIconWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(79, 172, 254, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "rgba(79, 172, 254, 0.2)",
+  },
+  loadingSpinner: {
+    marginTop: 10,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: TEXT_LIGHT,
+    fontWeight: "500",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: BACKGROUND_COLOR,
+    padding: 40,
+  },
+  errorContent: {
+    alignItems: "center",
+  },
+  errorIconWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(231, 76, 60, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: TEXT_DARK,
+    marginBottom: 12,
+  },
+  errorMessage: {
+    fontSize: 15,
+    color: TEXT_LIGHT,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 32,
+    maxWidth: 300,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  retryButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   summaryContainer: {
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 24,
   },
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
   summaryTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 16,
+    color: TEXT_DARK,
   },
   summaryGrid: {
     flexDirection: "row",
@@ -428,24 +651,31 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
+  summaryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   summaryCount: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#333",
-    marginTop: 8,
+    color: TEXT_DARK,
+    marginBottom: 4,
   },
   summaryLabel: {
     fontSize: 12,
-    color: "#666",
+    color: TEXT_LIGHT,
     fontWeight: "500",
-    marginTop: 4,
     textAlign: "center",
   },
   listHeader: {
@@ -461,33 +691,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  listIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(79, 172, 254, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   listTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
   },
   exportButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFEBEE",
+    backgroundColor: "rgba(79, 172, 254, 0.1)",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
   },
   exportButtonText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#FF7675",
+    color: PRIMARY_COLOR,
+  },
+  usersContainer: {
+    marginBottom: 40,
   },
   userCard: {
     backgroundColor: "#FFF",
     borderRadius: 20,
-    padding: 20,
+    padding: 16,
     marginHorizontal: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -503,7 +746,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#FF7675",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -519,138 +761,139 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 2,
   },
   username: {
     fontSize: 13,
-    color: "#666",
+    color: TEXT_LIGHT,
     fontWeight: "500",
+    marginBottom: 4,
+  },
+  userContactRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  contactText: {
+    fontSize: 11,
+    color: TEXT_LIGHT,
   },
   paymentBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
+    gap: 4,
   },
   paymentText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",
   },
-  userDetails: {
-    gap: 12,
-  },
-  detailRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
+  statsGrid: {
     gap: 8,
-    flex: 1,
+    marginBottom: 12,
   },
-  detailText: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "500",
-  },
-  // 2x2 Grid Container
-  statsContainer: {
-    marginTop: 8,
-  },
-  // Each row in the grid
   statsRow: {
     flexDirection: "row",
-    marginBottom: 16,
+    gap: 8,
   },
-  // Each individual stat item
   statItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: SECTION_BG,
     borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 6,
+    padding: 10,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: BORDER_COLOR,
   },
   statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 118, 117, 0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 8,
   },
   statContent: {
     flex: 1,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
-    color: "#666",
+    fontSize: 10,
+    color: TEXT_LIGHT,
   },
   amountRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 8,
-    paddingTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
+    borderTopColor: BORDER_COLOR,
   },
   amountItem: {
+    flex: 1,
     alignItems: "center",
   },
+  amountDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: BORDER_COLOR,
+    marginHorizontal: 12,
+  },
   amountLabel: {
-    fontSize: 12,
-    color: "#666",
+    fontSize: 11,
+    color: TEXT_LIGHT,
     marginBottom: 4,
   },
-  amountValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
+  amountValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
-  usersContainer: {
-    marginBottom: 40,
+  amountValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: TEXT_DARK,
   },
   emptyState: {
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 60,
   },
-  emptyIllustration: {
-    position: "relative",
+  emptyIconWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: SECTION_BG,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 24,
-  },
-  emptyDot: {
-    position: "absolute",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#E5E7EB",
-  },
-  emptyDot2: {
-    top: 10,
-    right: 10,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
   emptyStateTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#333",
+    color: TEXT_DARK,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: "#666",
+    color: TEXT_LIGHT,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 32,
@@ -659,12 +902,12 @@ const styles = StyleSheet.create({
   emptyStateButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FF7675",
+    backgroundColor: PRIMARY_COLOR,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 16,
     gap: 8,
-    shadowColor: "#FF7675",
+    shadowColor: PRIMARY_COLOR,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -684,67 +927,11 @@ const styles = StyleSheet.create({
   },
   listFooterText: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: TEXT_LIGHT,
     fontWeight: "500",
   },
   bottomSpace: {
     height: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "500",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    padding: 40,
-  },
-  errorContent: {
-    alignItems: "center",
-  },
-  errorTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#333",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  errorMessage: {
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 32,
-    maxWidth: 300,
-  },
-  retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FF7675",
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: "#FF7675",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  retryButtonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
 

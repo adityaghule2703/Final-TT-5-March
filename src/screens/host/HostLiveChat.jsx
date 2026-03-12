@@ -52,7 +52,6 @@ const HostLiveChat = ({ navigation, route }) => {
   const scrollViewRef = useRef(null);
   const messageInputRef = useRef(null);
   const isMounted = useRef(true);
-  const pollingIntervalRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
   const scrollOffsetRef = useRef(0);
   const lastMessageIdRef = useRef(null);
@@ -776,26 +775,6 @@ const HostLiveChat = ({ navigation, route }) => {
     }
   };
 
-  // Start polling
-  const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-   
-    pollingIntervalRef.current = setInterval(() => {
-      fetchMessages();
-      fetchMutedUsers();
-    }, 5000);
-  }, []);
-
-  // Stop polling
-  const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  }, []);
-
   // Scroll to bottom
   const scrollToBottom = () => {
     setShouldScrollToBottom(true);
@@ -805,6 +784,17 @@ const HostLiveChat = ({ navigation, route }) => {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
   };
+
+  // Add event listener for app coming to foreground
+  useEffect(() => {
+    const refreshOnFocus = navigation.addListener('focus', () => {
+      // Refresh messages when screen comes into focus
+      fetchMessages();
+      fetchMutedUsers();
+    });
+
+    return refreshOnFocus;
+  }, [navigation]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -828,7 +818,6 @@ const HostLiveChat = ({ navigation, route }) => {
         
         // Then fetch data
         await initialFetch();
-        startPolling();
       } catch (error) {
         console.log("Error joining chat:", error);
         Alert.alert("Error", "Failed to join chat");
@@ -840,7 +829,6 @@ const HostLiveChat = ({ navigation, route }) => {
 
     return () => {
       isMounted.current = false;
-      stopPolling();
     };
   }, []);
 

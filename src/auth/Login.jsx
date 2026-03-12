@@ -15,12 +15,14 @@ import {
   Animated,
   PermissionsAndroid,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  AppState
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import messaging from "@react-native-firebase/messaging";
+import NotifeeService from '../services/NotifeeService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -32,7 +34,6 @@ const WHITE = "#FFFFFF";
 const TEXT_DARK = "#333333";
 const TEXT_LIGHT = "#777777";
 const BORDER_COLOR = "#EEEEEE";
-const CARD_BACKGROUND = "#FFFFFF";
 
 const Login = ({ navigation, onLoginSuccess }) => {
   const [mobile, setMobile] = useState("");
@@ -41,44 +42,38 @@ const Login = ({ navigation, onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [fcmToken, setFcmToken] = useState("");
+  const [appState, setAppState] = useState(AppState.currentState);
   
   // Animation references
   const fadeIn = useRef(new Animated.Value(0)).current;
   const cardSlide = useRef(new Animated.Value(30)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  // Request notification permission and get FCM token (only once)
+  // Request notification permission and get FCM token
   const initializeFCM = async () => {
     try {
       console.log("📱 Initializing FCM...");
+      
+      // Initialize Notifee
+      await NotifeeService.initialize();
       
       // Check if we already have a token
       let token = await AsyncStorage.getItem("deviceFcmToken");
       
       if (token) {
-        console.log("✅ Found existing FCM token:", token.substring(0, 20) + "...");
+        console.log("✅ Found existing FCM token");
         setFcmToken(token);
         return token;
       }
       
-      // Request permission
-      if (Platform.OS === 'android') {
+      // Request permission for Android 13+
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
         );
         
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
           console.log("❌ Notification permission denied");
-          return null;
-        }
-      } else {
-        const authStatus = await messaging().requestPermission();
-        const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-                       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        
-        if (!enabled) {
-          console.log("❌ Notification permission denied");
-          return null;
         }
       }
       
@@ -87,7 +82,7 @@ const Login = ({ navigation, onLoginSuccess }) => {
       token = await messaging().getToken();
       
       if (token) {
-        console.log("✅ New FCM token generated:", token.substring(0, 20) + "...");
+        console.log("✅ New FCM token generated");
         await AsyncStorage.setItem("deviceFcmToken", token);
         setFcmToken(token);
         return token;
@@ -115,12 +110,12 @@ const Login = ({ navigation, onLoginSuccess }) => {
       }),
     ]).start();
 
-    // Initialize FCM once when component mounts
+    // Initialize FCM and Notifee
     initializeFCM();
 
-    // Handle token refresh (this happens automatically, just log it)
+    // Handle token refresh
     const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (newToken) => {
-      console.log("🔄 FCM token refreshed:", newToken.substring(0, 20) + "...");
+      console.log("🔄 FCM token refreshed");
       await AsyncStorage.setItem("deviceFcmToken", newToken);
       setFcmToken(newToken);
       
@@ -134,16 +129,45 @@ const Login = ({ navigation, onLoginSuccess }) => {
       }
     });
 
-    // Handle foreground messages
-    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
-      console.log("📨 New message:", remoteMessage);
+    // Handle notification when app is in background/killed and opened
+    messaging().getInitialNotification().then(remoteMessage => {
+      if (remoteMessage) {
+        console.log("App opened from quit state");
+        handleNotificationOpen(remoteMessage);
+      }
+    });
+
+    
+
+    // Handle notification when app is in background and brought to foreground
+    const unsubscribeNotificationOpened = messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log("App opened from background");
+      handleNotificationOpen(remoteMessage);
+    });
+
+    // Track app state changes
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      setAppState(nextAppState);
     });
 
     return () => {
       unsubscribeTokenRefresh();
-      unsubscribeForeground();
+      unsubscribeNotificationOpened();
+      subscription.remove();
     };
   }, []);
+
+  const handleNotificationOpen = (remoteMessage) => {
+    // Navigate based on notification data
+    const { data } = remoteMessage;
+    if (data?.screen) {
+      navigation.navigate(data.screen, data);
+    } else if (data?.game_id) {
+      navigation.navigate("GameDetails", { gameId: data.game_id });
+    } else if (data?.ticket_request_id) {
+      navigation.navigate("HostTicketRequests", { ticketId: data.ticket_request_id });
+    }
+  };
 
   // Update token on server when refreshed
   const updateTokenOnServer = async (token, role, authToken) => {
@@ -187,7 +211,7 @@ const Login = ({ navigation, onLoginSuccess }) => {
     ]).start();
 
     try {
-      // Use existing FCM token (don't generate new one)
+      // Use existing FCM token
       const tokenToSend = fcmToken || "";
 
       const endpoint = selectedRole === "user"
@@ -195,7 +219,6 @@ const Login = ({ navigation, onLoginSuccess }) => {
         : "https://tambolatime.co.in/public/api/host/login";
 
       console.log("🌐 Logging in with role:", selectedRole);
-      console.log("📱 Using FCM token:", tokenToSend ? tokenToSend.substring(0, 20) + "..." : "none");
 
       const response = await axios.post(endpoint, {
         mobile,
@@ -247,17 +270,18 @@ const Login = ({ navigation, onLoginSuccess }) => {
     }
   };
 
-  // Debug function to check token status
-  const debugTokens = async () => {
+  // Simple token info for debugging (only shows status, no test functions)
+  const showTokenInfo = async () => {
     const deviceToken = await AsyncStorage.getItem("deviceFcmToken");
-    const currentRole = await AsyncStorage.getItem("userRole");
     
     Alert.alert(
-      "Token Info",
-      `Device Token: ${deviceToken ? "✅" : "❌"}\n` +
-      `Token Length: ${deviceToken?.length || 0}\n` +
-      `Current Role: ${currentRole || "none"}\n` +
-      `First 20 chars: ${deviceToken?.substring(0, 20) || "none"}...`
+      "Notification Status",
+      `Notifications: ${deviceToken ? "✅ Enabled" : "❌ Disabled"}\n\n` +
+      "You will receive notifications for:\n" +
+      "• Ticket requests\n" +
+      "• Game updates\n" +
+      "• Important alerts",
+      [{ text: "OK" }]
     );
   };
 
@@ -289,20 +313,20 @@ const Login = ({ navigation, onLoginSuccess }) => {
                     <Text style={styles.welcomeText}>Welcome Back!</Text>
                   </View>
                   
-                  {/* Token status indicator */}
-                  <TouchableOpacity 
-                    style={styles.fcmStatusContainer}
-                    onPress={debugTokens}
-                  >
+                  {/* Simple notification status indicator - no debug menu */}
+                  <View style={styles.fcmStatusContainer}>
                     <Ionicons 
                       name={fcmToken ? "notifications" : "notifications-off"} 
                       size={16} 
                       color={ACCENT_COLOR} 
                     />
                     <Text style={styles.fcmStatusText}>
-                      {fcmToken ? "Notifications Ready" : "Tap to Enable"}
+                      {fcmToken ? "Notifications Active" : "Notifications Disabled"}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
+                  
+                  {/* Optional: Add small info button for users to check status */}
+                
                 </View>
 
                 <View style={styles.card}>
@@ -445,7 +469,6 @@ const Login = ({ navigation, onLoginSuccess }) => {
   );
 };
 
-// Keep your existing styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -468,6 +491,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
+    position: 'relative',
   },
   logoContainer: {
     alignItems: 'center',
@@ -495,14 +519,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     marginTop: 5,
-    borderWidth: 1,
-    borderColor: PRIMARY_COLOR,
   },
   fcmStatusText: {
     fontSize: 12,
     color: PRIMARY_COLOR,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  infoButton: {
+    position: 'absolute',
+    right: 0,
+    top: 10,
+    padding: 5,
   },
   card: {
     backgroundColor: WHITE,

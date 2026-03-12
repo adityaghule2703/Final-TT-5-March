@@ -11,15 +11,28 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   Modal,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 const { width } = Dimensions.get("window");
+// Calculate size based on 10 items per row with proper spacing
+const CELL_SIZE = Math.min((width - 40) / 10 - 4, 36); // Reduced padding and size
+
+// Color scheme matching UserCalledNumbers
+const PRIMARY_COLOR = "#4facfe"; // Main blue color
+const ACCENT_COLOR = "#ff9800"; // Orange accent
+const BACKGROUND_COLOR = "#f5f8ff"; // Light background
+const WHITE = "#FFFFFF";
+const TEXT_DARK = "#333333";
+const TEXT_LIGHT = "#777777";
+const BORDER_COLOR = "#EEEEEE";
+const CARD_BACKGROUND = "#FFFFFF";
+const SUCCESS_COLOR = "#4CAF50"; // Green for success states
+const ERROR_COLOR = "#E74C3C"; // Red for errors
+const ACTIVE_ORANGE = "#ff9800"; // Orange for active state
 
 const HostCalledNumbers = ({ navigation, route }) => {
   const { gameId, gameName } = route.params;
@@ -72,62 +85,57 @@ const HostCalledNumbers = ({ navigation, route }) => {
     setModalVisible(true);
   };
 
-  const renderAllCalledNumbersList = () => {
-    if (calledNumbers.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="megaphone-outline" size={64} color="#DDD" />
-          <Text style={styles.emptyText}>No numbers called yet</Text>
-          <Text style={styles.emptySubtext}>
-            Start number calling from the game room to see called numbers here
-          </Text>
+  const getNumberPosition = (number) => {
+    const index = calledNumbers.indexOf(number);
+    return index !== -1 ? index + 1 : null;
+  };
+
+  const renderNumberGrid = () => {
+    const rows = [];
+    
+    // Create rows of 10 numbers each (1-90)
+    for (let row = 0; row < 9; row++) {
+      const rowNumbers = [];
+      for (let col = 1; col <= 10; col++) {
+        const number = row * 10 + col;
+        const isCalled = calledNumbers.includes(number);
+        const position = getNumberPosition(number);
+        
+        rowNumbers.push(
+          <TouchableOpacity
+            key={number}
+            style={[
+              styles.numberCell,
+              isCalled && styles.calledNumberCell,
+            ]}
+            onPress={() => showNumberDetails(number)}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.numberText,
+              isCalled && styles.calledNumberText,
+            ]}>
+              {number}
+            </Text>
+            {isCalled && (
+              <View style={styles.calledBadge}>
+                <Text style={styles.calledBadgeText}>#{position}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      }
+      
+      rows.push(
+        <View key={row} style={styles.numberRow}>
+          {rowNumbers}
         </View>
       );
     }
 
     return (
-      <View style={styles.allNumbersListContainer}>
-        <View style={styles.listHeader}>
-          <Text style={styles.listHeaderText}>All Called Numbers in Sequence</Text>
-          <Text style={styles.listHeaderCount}>{calledNumbers.length} numbers</Text>
-        </View>
-        
-        <ScrollView 
-          style={styles.calledNumbersScroll}
-          showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
-        >
-          <View style={styles.allNumbersGrid}>
-            {calledNumbers.map((number, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.allNumberItem}
-                onPress={() => showNumberDetails(number)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.allNumberItemContent}>
-                  <View style={styles.allNumberTopRow}>
-                    <View style={styles.sequenceContainer}>
-                      <Text style={styles.sequenceText}>#{index + 1}</Text>
-                    </View>
-                    <Text style={styles.allNumberValue}>{number}</Text>
-                    <View style={styles.calledBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-                      <Text style={styles.calledBadgeText}>Called</Text>
-                    </View>
-                  </View>
-                  <View style={styles.allNumberBottomRow}>
-                    <Text style={styles.callTime}>Called {index + 1} in sequence</Text>
-                    <View style={styles.numberIndicator}>
-                      <Text style={styles.numberIndicatorText}>Number {number}</Text>
-                    </View>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+      <View style={styles.numberGrid}>
+        {rows}
       </View>
     );
   };
@@ -147,71 +155,67 @@ const HostCalledNumbers = ({ navigation, route }) => {
             activeOpacity={1}
           >
             <View style={styles.modalContent}>
-              <View style={styles.modalNumberContainer}>
-                <Text style={styles.modalNumber}>
-                  {selectedNumber}
-                </Text>
-              </View>
-              
-              <Text style={styles.modalTitle}>
-                {calledNumbers.includes(selectedNumber) ? 'Called Number' : 'Number Details'}
-              </Text>
-              
-              <View style={styles.modalStats}>
-                <View style={styles.modalStat}>
-                  <Ionicons 
-                    name="checkmark-circle" 
-                    size={24} 
-                    color={calledNumbers.includes(selectedNumber) ? "#4CAF50" : "#9CA3AF"} 
-                  />
-                  <Text style={[
-                    styles.modalStatText,
-                    calledNumbers.includes(selectedNumber) ? styles.calledText : styles.notCalledText
-                  ]}>
-                    {calledNumbers.includes(selectedNumber) ? 'Called' : 'Not Called'}
-                  </Text>
-                </View>
-                
-                {calledNumbers.includes(selectedNumber) && (
-                  <View style={styles.modalStat}>
-                    <Ionicons name="time-outline" size={24} color="#FF9800" />
-                    <Text style={styles.modalStatText}>
-                      Position: {calledNumbers.indexOf(selectedNumber) + 1}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              
-              <View style={styles.modalInfo}>
-                <View style={styles.modalInfoItem}>
-                  <Ionicons name="cube-outline" size={20} color="#666" />
-                  <Text style={styles.modalInfoText}>Number: {selectedNumber}</Text>
-                </View>
-                
-                {calledNumbers.includes(selectedNumber) && (
-                  <>
-                    <View style={styles.modalInfoItem}>
-                      <Ionicons name="list-outline" size={20} color="#666" />
-                      <Text style={styles.modalInfoText}>
-                        Called #{calledNumbers.indexOf(selectedNumber) + 1} of {calledNumbers.length}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.modalInfoItem}>
-                      <Ionicons name="stats-chart-outline" size={20} color="#666" />
-                      <Text style={styles.modalInfoText}>
-                        {calledNumbers.length} of 90 numbers called
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-              
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCloseButtonText}>Close</Text>
+                <Ionicons name="close" size={24} color={TEXT_LIGHT} />
+              </TouchableOpacity>
+
+              <View style={styles.modalNumberContainer}>
+                <View style={[
+                  styles.modalNumberCircle,
+                  calledNumbers.includes(selectedNumber) 
+                    ? styles.modalNumberCalled
+                    : styles.modalNumberNotCalled
+                ]}>
+                  <Text style={styles.modalNumber}>
+                    {selectedNumber}
+                  </Text>
+                </View>
+              </View>
+              
+              <Text style={styles.modalTitle}>
+                {calledNumbers.includes(selectedNumber) 
+                  ? 'Number Called!' 
+                  : 'Not Called Yet'}
+              </Text>
+              
+              <View style={styles.modalStats}>
+                {calledNumbers.includes(selectedNumber) ? (
+                  <>
+                    <View style={styles.modalStat}>
+                      <Ionicons name="list" size={20} color={PRIMARY_COLOR} />
+                      <Text style={styles.modalStatLabel}>Position</Text>
+                      <Text style={styles.modalStatValue}>
+                        #{calledNumbers.indexOf(selectedNumber) + 1}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalStatDivider} />
+                    
+                    <View style={styles.modalStat}>
+                      <Ionicons name="stats-chart" size={20} color={SUCCESS_COLOR} />
+                      <Text style={styles.modalStatLabel}>Progress</Text>
+                      <Text style={styles.modalStatValue}>
+                        {calledNumbers.length}/90
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.modalStat}>
+                    <Ionicons name="alert-circle" size={20} color={ERROR_COLOR} />
+                    <Text style={styles.modalStatLabel}>Status</Text>
+                    <Text style={styles.modalStatValue}>Not Called</Text>
+                  </View>
+                )}
+              </View>
+              
+              <TouchableOpacity
+                style={styles.modalActionButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalActionButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -223,173 +227,162 @@ const HostCalledNumbers = ({ navigation, route }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
-        <Text style={styles.loadingText}>Loading Called Numbers...</Text>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+        <Text style={styles.loadingText}>Loading called numbers...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#3498db" barStyle="light-content" />
+      <StatusBar backgroundColor={PRIMARY_COLOR} barStyle="light-content" />
 
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{gameName}</Text>
-          <Text style={styles.headerSubtitle}>Called Numbers</Text>
-        </View>
-        
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={fetchGameStatus}
-        >
-          <Ionicons name="refresh" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#3498db"
-            colors={["#3498db"]}
-            progressViewOffset={20}
-          />
-        }
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Stats Card */}
-        <View style={styles.statsCard}>
-          <View style={styles.statsHeader}>
-            <MaterialCommunityIcons name="numeric" size={24} color="#2196F3" />
-            <Text style={styles.statsTitle}>Called Numbers Overview</Text>
-            <View style={[
-              styles.statusBadge,
-              { backgroundColor: gameStatus?.status === 'live' ? '#4CAF5015' : '#FF980015' }
-            ]}>
-              <Text style={[
-                styles.statusBadgeText,
-                { color: gameStatus?.status === 'live' ? '#4CAF50' : '#FF9800' }
-              ]}>
-                {gameStatus?.status?.toUpperCase() || 'LOADING'}
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={WHITE} />
+            </TouchableOpacity>
+            
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{gameName}</Text>
+              <Text style={styles.gameCode}>
+                {calledNumbers.length}/90 Numbers Called
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={fetchGameStatus}
+            >
+              <Ionicons name="refresh" size={20} color={WHITE} />
+            </TouchableOpacity>
           </View>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+        </View>
+      </View>
+
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={PRIMARY_COLOR}
+              colors={[PRIMARY_COLOR]}
+            />
+          }
+        >
+          {/* Stats Cards */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Ionicons name="checkmark-circle" size={20} color={SUCCESS_COLOR} />
               <Text style={styles.statValue}>{calledNumbers.length}</Text>
-              <Text style={styles.statLabel}>Total Called</Text>
+              <Text style={styles.statLabel}>Called</Text>
             </View>
             
-            <View style={styles.statItem}>
-              <Ionicons name="grid-outline" size={24} color="#2196F3" />
+            <View style={styles.statCard}>
+              <Ionicons name="timer-outline" size={20} color={ACCENT_COLOR} />
               <Text style={styles.statValue}>{90 - calledNumbers.length}</Text>
               <Text style={styles.statLabel}>Remaining</Text>
             </View>
             
-            <View style={styles.statItem}>
-              <Ionicons name="stats-chart" size={24} color="#9C27B0" />
+            <View style={styles.statCard}>
+              <Ionicons name="pie-chart" size={20} color={PRIMARY_COLOR} />
               <Text style={styles.statValue}>
-                {((calledNumbers.length / 90) * 100).toFixed(1)}%
+                {((calledNumbers.length / 90) * 100).toFixed(0)}%
               </Text>
-              <Text style={styles.statLabel}>Completion</Text>
+              <Text style={styles.statLabel}>Complete</Text>
             </View>
           </View>
-          
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill,
-                { width: `${(calledNumbers.length / 90) * 100}%` }
-              ]} 
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {calledNumbers.length} of 90 numbers called ({((calledNumbers.length / 90) * 100).toFixed(1)}%)
-          </Text>
-        </View>
 
-        {/* All Called Numbers List */}
-        <View style={styles.numbersSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="list" size={24} color="#333" />
-            <Text style={styles.sectionTitle}>All Called Numbers</Text>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>
-                {calledNumbers.length} called
-              </Text>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill,
+                  { width: `${(calledNumbers.length / 90) * 100}%` }
+                ]} 
+              />
             </View>
           </View>
-          
-          <Text style={styles.sectionDescription}>
-            Tap on any number to view details. Scroll to see all {calledNumbers.length} called numbers.
-          </Text>
-          
-          {renderAllCalledNumbersList()}
-          
-          <TouchableOpacity
-            style={styles.backToTopButton}
-            onPress={() => {
-              if (calledNumbers.length > 0) {
-                showNumberDetails(calledNumbers[0]);
-              }
-            }}
-          >
-            <Ionicons name="arrow-up-circle" size={20} color="#3498db" />
-            <Text style={styles.backToTopText}>View First Number</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionsSection}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back-outline" size={20} color="#FFF" />
-            <Text style={styles.actionButtonText}>Back to Game</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryAction]}
-            onPress={fetchGameStatus}
-          >
-            <Ionicons name="refresh-outline" size={20} color="#FFF" />
-            <Text style={styles.actionButtonText}>Refresh</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.tertiaryAction]}
-            onPress={() => {
-              if (calledNumbers.length > 0) {
-                showNumberDetails(calledNumbers[calledNumbers.length - 1]);
-              } else {
-                Alert.alert("Info", "No numbers have been called yet");
-              }
-            }}
-          >
-            <Ionicons name="megaphone-outline" size={20} color="#FFF" />
-            <Text style={styles.actionButtonText}>Last Number</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Game Status Badge */}
+          {gameStatus && (
+            <View style={styles.statusContainer}>
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: gameStatus.status === 'live' ? '#4CAF5015' : '#FF980015' }
+              ]}>
+                <Ionicons 
+                  name={gameStatus.status === 'live' ? 'radio' : 'pause-circle'} 
+                  size={14} 
+                  color={gameStatus.status === 'live' ? SUCCESS_COLOR : ACCENT_COLOR} 
+                />
+                <Text style={[
+                  styles.statusText,
+                  { color: gameStatus.status === 'live' ? SUCCESS_COLOR : ACCENT_COLOR }
+                ]}>
+                  {gameStatus.status?.toUpperCase() || 'LOADING'}
+                </Text>
+              </View>
+            </View>
+          )}
 
-        <View style={styles.refreshHint}>
-          <Ionicons name="arrow-down" size={14} color="#9CA3AF" />
-          <Text style={styles.refreshHintText}>Pull down to refresh</Text>
-        </View>
-      </ScrollView>
+          {/* All Numbers Grid Section */}
+          <View style={styles.numbersSection}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Ionicons name="grid" size={18} color={ACCENT_COLOR} />
+                <Text style={styles.sectionTitle}>All Numbers (1-90)</Text>
+              </View>
+              <View style={styles.sectionBadge}>
+                <Text style={styles.sectionBadgeText}>
+                  {calledNumbers.length}/90
+                </Text>
+              </View>
+            </View>
+            
+            <Text style={styles.sectionDescription}>
+              Tap on any number to view details. Green cells show called numbers with position.
+            </Text>
+            
+            {renderNumberGrid()}
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={18} color={WHITE} />
+              <Text style={styles.actionButtonText}>Back to Game</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton]}
+              onPress={() => {
+                if (calledNumbers.length > 0) {
+                  showNumberDetails(calledNumbers[calledNumbers.length - 1]);
+                }
+              }}
+            >
+              <Ionicons name="megaphone" size={18} color={WHITE} />
+              <Text style={styles.actionButtonText}>Last Called</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Bottom Space */}
+          <View style={styles.bottomSpace} />
+        </ScrollView>
+      </View>
 
       <NumberModal />
     </SafeAreaView>
@@ -399,467 +392,376 @@ const HostCalledNumbers = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: BACKGROUND_COLOR,
   },
   container: {
     flex: 1,
+    backgroundColor: BACKGROUND_COLOR,
   },
   scrollContent: {
-    paddingBottom: 40,
+    padding: 10,
   },
+  // Header Styles
   header: {
-    backgroundColor: "#3498db",
-    flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: PRIMARY_COLOR,
     paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  backButton: {
-    marginRight: 15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerContent: {
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
     flex: 1,
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#FFF",
-    marginBottom: 2,
+    color: WHITE,
+    letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
+  gameCode: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
     fontWeight: "500",
+    marginTop: 2,
   },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "500",
-  },
-  statsCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  statsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-    flex: 1,
-    marginLeft: 12,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  statsGrid: {
+  // Stats Row
+  statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 12,
+    marginTop: 5,
   },
-  statItem: {
-    alignItems: "center",
+  statCard: {
     flex: 1,
+    backgroundColor: WHITE,
+    borderRadius: 10,
+    padding: 8,
+    alignItems: "center",
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#333",
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "500",
+    fontSize: 20,
+    fontWeight: "700",
+    color: TEXT_DARK,
     marginTop: 4,
   },
+  statLabel: {
+    fontSize: 11,
+    color: TEXT_LIGHT,
+    fontWeight: "500",
+  },
+  // Progress Bar
+  progressContainer: {
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
   progressBar: {
-    height: 8,
-    backgroundColor: "#F0F0F0",
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: BORDER_COLOR,
+    borderRadius: 3,
     overflow: "hidden",
-    marginBottom: 8,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#4CAF50",
-    borderRadius: 4,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 3,
   },
-  progressText: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "500",
-    textAlign: "center",
+  // Status Badge
+  statusContainer: {
+    alignItems: "center",
+    marginBottom: 12,
   },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: 5,
+  },
+  // Numbers Section
   numbersSection: {
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    backgroundColor: WHITE,
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: BORDER_COLOR,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-    minHeight: 400,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-    flex: 1,
-    marginLeft: 12,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  sectionBadge: {
-    backgroundColor: "#E6F0FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  sectionBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#3498db",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: "#666",
-    fontWeight: "600",
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 20,
-  },
-  allNumbersListContainer: {
-    flex: 1,
-    height: 400,
-  },
-  listHeader: {
-    flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  listHeaderText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  listHeaderCount: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  calledNumbersScroll: {
-    flex: 1,
-  },
-  allNumbersGrid: {
-    gap: 12,
-    paddingBottom: 20,
-  },
-  allNumberItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  allNumberItemContent: {
-    flex: 1,
-  },
-  allNumberTopRow: {
-    flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
   },
-  sequenceContainer: {
-    backgroundColor: "#E6F0FF",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 40,
+  sectionTitleContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    marginRight: 12,
+    gap: 6,
   },
-  sequenceText: {
-    fontSize: 12,
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: "700",
-    color: "#3498db",
+    color: TEXT_DARK,
   },
-  allNumberValue: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#333",
-    marginRight: 12,
+  sectionDescription: {
+    fontSize: 12,
+    color: TEXT_LIGHT,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  sectionBadge: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  sectionBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: WHITE,
+  },
+  // Number Grid
+  numberGrid: {
+    gap: 4,
+  },
+  numberRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 4,
+    marginBottom: 4,
+  },
+  numberCell: {
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: WHITE,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    position: 'relative',
+  },
+  calledNumberCell: {
+    backgroundColor: SUCCESS_COLOR,
+    borderColor: SUCCESS_COLOR,
+  },
+  numberText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: TEXT_DARK,
+  },
+  calledNumberText: {
+    color: WHITE,
+    fontWeight: "700",
   },
   calledBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#4CAF5015",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    position: 'absolute',
+    top: 1,
+    right: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 4,
+    paddingHorizontal: 2,
+    paddingVertical: 1,
   },
   calledBadgeText: {
-    fontSize: 10,
-    color: "#4CAF50",
-    fontWeight: "600",
-    marginLeft: 4,
+    fontSize: 6,
+    color: WHITE,
+    fontWeight: '700',
   },
-  allNumberBottomRow: {
+  // Actions Container
+  actionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-  },
-  callTime: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
-  numberIndicator: {
-    backgroundColor: "#F3F0FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  numberIndicatorText: {
-    fontSize: 10,
-    color: "#7E57C2",
-    fontWeight: "600",
-  },
-  backToTopButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0F9FF",
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E6F0FF",
-    marginTop: 16,
-  },
-  backToTopText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3498db",
-    marginLeft: 8,
-  },
-  actionsSection: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginTop: 8,
+    marginTop: 12,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
-    minWidth: 100,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#3498db",
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    marginBottom: 8,
-    shadowColor: "#3498db",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
   },
-  secondaryAction: {
-    backgroundColor: "#FF9800",
-  },
-  tertiaryAction: {
-    backgroundColor: "#9C27B0",
+  secondaryButton: {
+    backgroundColor: ACCENT_COLOR,
   },
   actionButtonText: {
-    color: "#FFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
-    textAlign: "center",
-    marginLeft: 8,
+    color: WHITE,
   },
-  refreshHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    marginBottom: 10,
+  bottomSpace: {
+    height: 20,
   },
-  refreshHintText: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-    marginLeft: 6,
-  },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
   },
   modalContainer: {
     width: "100%",
-    maxHeight: "80%",
-  },
-  modalContent: {
-    backgroundColor: "#FFF",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 20,
+    maxWidth: 300,
   },
   modalCloseArea: {
     width: "100%",
   },
-  modalNumberContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "#7E57C2",
-    justifyContent: "center",
+  modalContent: {
+    backgroundColor: WHITE,
+    borderRadius: 20,
+    padding: 20,
     alignItems: "center",
-    marginBottom: 20,
-    alignSelf: "center",
-    shadowColor: "#7E57C2",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
     elevation: 10,
   },
+  modalCloseButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  modalNumberContainer: {
+    marginBottom: 15,
+    marginTop: 10,
+  },
+  modalNumberCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalNumberCalled: {
+    backgroundColor: SUCCESS_COLOR,
+  },
+  modalNumberNotCalled: {
+    backgroundColor: ERROR_COLOR,
+  },
   modalNumber: {
-    fontSize: 64,
+    fontSize: 42,
     fontWeight: "900",
-    color: "#FFF",
+    color: WHITE,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 20,
+    color: TEXT_DARK,
+    marginBottom: 15,
   },
   modalStats: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+    backgroundColor: BACKGROUND_COLOR,
+    borderRadius: 15,
+    padding: 12,
+    width: "100%",
   },
   modalStat: {
+    flex: 1,
     alignItems: "center",
-    marginHorizontal: 15,
   },
-  modalStatText: {
-    fontSize: 12,
-    marginTop: 4,
+  modalStatDivider: {
+    width: 1,
+    height: 25,
+    backgroundColor: BORDER_COLOR,
+    marginHorizontal: 10,
   },
-  calledText: {
-    color: "#4CAF50",
-    fontWeight: "600",
+  modalStatLabel: {
+    fontSize: 11,
+    color: TEXT_LIGHT,
+    marginTop: 2,
+    marginBottom: 1,
   },
-  notCalledText: {
-    color: "#9CA3AF",
-  },
-  modalInfo: {
-    marginBottom: 24,
-  },
-  modalInfoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  modalInfoText: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 12,
-  },
-  modalCloseButton: {
-    backgroundColor: "#3498db",
-    paddingHorizontal: 40,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  modalCloseButtonText: {
-    color: "#FFF",
+  modalStatValue: {
     fontSize: 16,
+    fontWeight: "700",
+    color: TEXT_DARK,
+  },
+  modalActionButton: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 20,
+    width: "100%",
+  },
+  modalActionButtonText: {
+    color: WHITE,
+    fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: BACKGROUND_COLOR,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: TEXT_LIGHT,
   },
 });
 
