@@ -3034,7 +3034,7 @@ const HostProfile = ({ navigation, onLogout }) => {
               </View>
 
               <View style={styles.settingsCard}>
-                <SettingItem 
+                {/* <SettingItem 
                   icon="lock-closed"
                   title="Change Password"
                   description="Update your password"
@@ -3047,7 +3047,7 @@ const HostProfile = ({ navigation, onLogout }) => {
                   description="Manage your earnings"
                   color={COLORS.purple}
                   onPress={() => Alert.alert("Coming Soon", "Wallet feature coming soon!")}
-                />
+                /> */}
                 <SettingItem 
                   icon="help-circle"
                   title="Help & Support"

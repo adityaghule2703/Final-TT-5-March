@@ -264,7 +264,7 @@ const HostGameOptions = ({ route, navigation }) => {
 
         {/* Secondary Options */}
         <View style={styles.secondaryOptions}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => {
               Alert.alert(
@@ -276,17 +276,17 @@ const HostGameOptions = ({ route, navigation }) => {
           >
             <Ionicons name="share-social-outline" size={20} color="#666" />
             <Text style={styles.secondaryButtonText}>Share</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => navigation.navigate("HostGamePatterns")}
           >
             <Ionicons name="grid-outline" size={20} color="#666" />
             <Text style={styles.secondaryButtonText}>Patterns</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => {
               Alert.alert(
@@ -298,7 +298,7 @@ const HostGameOptions = ({ route, navigation }) => {
           >
             <Ionicons name="help-circle-outline" size={20} color="#666" />
             <Text style={styles.secondaryButtonText}>Help</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <View style={styles.bottomSpace} />

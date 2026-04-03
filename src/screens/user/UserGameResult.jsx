@@ -11492,7 +11492,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   myTicketsList: {
-    maxHeight: 500,
+     flex: 1,
   },
   ticketItemContainer: {
     marginBottom: 20,

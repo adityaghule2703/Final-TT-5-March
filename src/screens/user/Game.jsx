@@ -25,7 +25,6 @@ import LinearGradient from 'react-native-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
-// Enhanced color scheme with gradients
 const COLORS = {
   primary: "#4facfe",
   primaryLight: "#9fcdff",
@@ -38,7 +37,6 @@ const COLORS = {
   textLight: "#777777",
   border: "#EEEEEE",
   
-  // Status colors with gradients
   live: "#4CAF50",
   liveGradient: ['#4CAF50', '#45a049'],
   scheduled: "#ff9800",
@@ -46,13 +44,11 @@ const COLORS = {
   completed: "#ff9800",
   completedGradient: ['#ff9800', '#f57c00'],
   
-  // Quick action colors
   deposit: "#4facfe",
   withdraw: "#FF6B6B",
   refer: "#4ECDC4",
   support: "#9B59B6",
   
-  // Pattern card colors - enhanced gradients
   patternGradients: [
     ['#0282E9', '#0056b3'],
     ['#F59E0B', '#d97706'],
@@ -64,16 +60,13 @@ const COLORS = {
     ['#F97316', '#ea580c'],
   ],
   
-  // Additional gradients
   prizeGradient: ['#4facfe20', '#00c6fb20'],
   winnerGradient: ['#4facfe10', '#9fcdff10'],
   glassGradient: ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)'],
   darkGlassGradient: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.02)'],
 };
 
-// Custom Loader Component with Fixed Animations
 const CustomLoader = () => {
-  // Animations
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -82,7 +75,6 @@ const CustomLoader = () => {
   const slideAnim = useRef(new Animated.Value(-width)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Dynamic messages
   const messages = [
     "Loading games...",
     "Fetching latest games 🎮",
@@ -96,10 +88,8 @@ const CustomLoader = () => {
   const [animationLoop, setAnimationLoop] = useState(true);
 
   useEffect(() => {
-    // Create animation loops with proper cleanup
     const animations = [];
     
-    // Title bounce animation
     const bounceAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnim, {
@@ -117,7 +107,6 @@ const CustomLoader = () => {
     animations.push(bounceAnimation);
     bounceAnimation.start();
 
-    // Dots animation
     const animateDot = (dot, delay) => {
       return Animated.loop(
         Animated.sequence([
@@ -145,7 +134,6 @@ const CustomLoader = () => {
     dot2Animation.start();
     dot3Animation.start();
 
-    // Floating numbers animation
     const floatAnimation = Animated.loop(
       Animated.timing(floatAnim, {
         toValue: 1,
@@ -156,7 +144,6 @@ const CustomLoader = () => {
     animations.push(floatAnimation);
     floatAnimation.start();
 
-    // Ticket slide animation
     const slideAnimation = Animated.loop(
       Animated.timing(slideAnim, {
         toValue: width,
@@ -168,7 +155,6 @@ const CustomLoader = () => {
     animations.push(slideAnimation);
     slideAnimation.start();
 
-    // Dynamic text change interval
     const textInterval = setInterval(() => {
       if (animationLoop) {
         Animated.timing(fadeAnim, {
@@ -186,17 +172,14 @@ const CustomLoader = () => {
       }
     }, 2500);
 
-    // Cleanup function to stop all animations when component unmounts
     return () => {
       setAnimationLoop(false);
       clearInterval(textInterval);
-      // Stop all animations
       animations.forEach(animation => {
         if (animation && typeof animation.stop === 'function') {
           animation.stop();
         }
       });
-      // Reset all animated values
       bounceAnim.stopAnimation();
       dot1.stopAnimation();
       dot2.stopAnimation();
@@ -205,14 +188,13 @@ const CustomLoader = () => {
       slideAnim.stopAnimation();
       fadeAnim.stopAnimation();
     };
-  }, []); // Empty dependency array ensures animations run once and continue
+  }, []);
 
   const floatUp = floatAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -120],
   });
 
-  // Reset slide animation when it reaches the end
   useEffect(() => {
     const listener = slideAnim.addListener(({ value }) => {
       if (value >= width) {
@@ -227,7 +209,6 @@ const CustomLoader = () => {
 
   return (
     <LinearGradient colors={['#4facfe', '#FDB800']} style={styles.loaderContainer}>
-      {/* Floating Numbers */}
       <Animated.Text style={[styles.number, { transform: [{ translateY: floatUp }] }]}>
         17
       </Animated.Text>
@@ -236,24 +217,20 @@ const CustomLoader = () => {
         42
       </Animated.Text>
 
-      {/* App Name */}
       <Animated.Text style={[styles.title, { transform: [{ translateY: bounceAnim }] }]}>
         Houzie Timez
       </Animated.Text>
 
-      {/* Loader Dots */}
       <View style={styles.loaderContainerDots}>
         <Animated.View style={[styles.dot, { transform: [{ translateY: dot1 }] }]} />
         <Animated.View style={[styles.dot, { transform: [{ translateY: dot2 }] }]} />
         <Animated.View style={[styles.dot, { transform: [{ translateY: dot3 }] }]} />
       </View>
 
-      {/* Dynamic Subtitle */}
       <Animated.Text style={[styles.subtitle, { opacity: fadeAnim }]}>
         {messages[currentText]}
       </Animated.Text>
 
-      {/* Sliding Ticket */}
       <Animated.View
         style={[
           styles.ticketStrip,
@@ -277,19 +254,16 @@ const Game = ({ navigation }) => {
   });
   const [activeTab, setActiveTab] = useState('myGames');
   
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   
-  // Animation values
   const floatAnim1 = useRef(new Animated.Value(0)).current;
   const floatAnim2 = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
-  // Button animation refs
   const buttonScaleAnims = useRef([]);
   const letterAnims = useRef([]);
 
@@ -297,7 +271,6 @@ const Game = ({ navigation }) => {
     fetchAllData();
     startAnimations();
     
-    // Start fade animation
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
@@ -305,7 +278,6 @@ const Game = ({ navigation }) => {
     }).start();
   }, []);
 
-  // Initialize button animations when games load
   useEffect(() => {
     if (games.length > 0) {
       buttonScaleAnims.current = games.map(() => new Animated.Value(1));
@@ -316,13 +288,10 @@ const Game = ({ navigation }) => {
     }
   }, [games.length]);
 
-  // Initialize letter animations for header
   useEffect(() => {
-    // Create new animations array
     const newLetterAnims = Array(12).fill().map(() => new Animated.Value(1));
     letterAnims.current = newLetterAnims;
     
-    // Stop any existing animations
     letterAnims.current.forEach(anim => {
       anim.stopAnimation();
       anim.setValue(1);
@@ -334,12 +303,10 @@ const Game = ({ navigation }) => {
     const animateNextLetter = () => {
       if (!isAnimating) return;
       
-      // Reset all letters to normal size
       letterAnims.current.forEach(anim => {
         anim.setValue(1);
       });
       
-      // Animate current letter
       Animated.sequence([
         Animated.timing(letterAnims.current[currentIndex], {
           toValue: 1.5,
@@ -353,20 +320,17 @@ const Game = ({ navigation }) => {
           useNativeDriver: true,
           easing: Easing.bounce,
         }),
-        Animated.delay(200), // Pause before next letter
+        Animated.delay(200),
       ]).start(({ finished }) => {
         if (finished && isAnimating) {
-          // Move to next letter
           currentIndex = (currentIndex + 1) % letterAnims.current.length;
           animateNextLetter();
         }
       });
     };
     
-    // Start the animation
     animateNextLetter();
     
-    // Cleanup function
     return () => {
       isAnimating = false;
       if (letterAnims.current) {
@@ -397,7 +361,6 @@ const Game = ({ navigation }) => {
   };
 
   const startAnimations = () => {
-    // First floating animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim1, {
@@ -415,7 +378,6 @@ const Game = ({ navigation }) => {
       ])
     ).start();
 
-    // Second floating animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim2, {
@@ -433,7 +395,6 @@ const Game = ({ navigation }) => {
       ])
     ).start();
 
-    // Pulse animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -452,7 +413,6 @@ const Game = ({ navigation }) => {
     ).start();
   };
 
-  // Interpolations for animations
   const translateY1 = floatAnim1.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 15]
@@ -482,7 +442,6 @@ const Game = ({ navigation }) => {
         fetchMyRequests()
       ]);
     } catch (error) {
-      console.log("Error fetching data:", error);
       Alert.alert("Error", "Failed to load games data!");
     } finally {
       setLoading(false);
@@ -512,7 +471,6 @@ const Game = ({ navigation }) => {
         setHasMore(paginationData.current_page < paginationData.last_page);
       }
     } catch (error) {
-      console.log("Error fetching games:", error);
       Alert.alert("Error", "Failed to load games!");
     }
   };
@@ -530,9 +488,7 @@ const Game = ({ navigation }) => {
           myTickets: res.data.tickets.data || []
         }));
       }
-    } catch (error) {
-      console.log("Error fetching tickets:", error);
-    }
+    } catch (error) {}
   };
 
   const fetchMyRequests = async () => {
@@ -548,9 +504,7 @@ const Game = ({ navigation }) => {
           myRequests: res.data.ticket_requests.data || []
         }));
       }
-    } catch (error) {
-      console.log("Error fetching requests:", error);
-    }
+    } catch (error) {}
   };
 
   const loadMoreGames = () => {
@@ -640,7 +594,6 @@ const Game = ({ navigation }) => {
     return total;
   };
 
-  // Cartoon-style header with gradient
   const Header = () => {
     const letters = [
       { char: 'H', index: 0 },
@@ -708,7 +661,6 @@ const Game = ({ navigation }) => {
         activeOpacity={0.9}
         onPress={() => navigation.navigate("GameDetails", { game })}
       >
-        {/* Background Pattern with Gradient */}
         <LinearGradient
           colors={COLORS.prizeGradient}
           start={{ x: 0, y: 0 }}
@@ -716,7 +668,6 @@ const Game = ({ navigation }) => {
           style={styles.gameCardPattern}
         />
         
-        {/* Status badge with gradient */}
         <LinearGradient
           colors={isLive ? COLORS.liveGradient : 
                   isCompleted ? COLORS.completedGradient : 
@@ -741,7 +692,6 @@ const Game = ({ navigation }) => {
           </Text>
         </LinearGradient>
 
-        {/* Playing indicator with gradient */}
         {isPlaying && (
           <View style={styles.playingCardOverlay}>
             <LinearGradient
@@ -1153,10 +1103,8 @@ const Game = ({ navigation }) => {
           />
         </View>
 
-        {/* Fixed Header with gradient */}
         <Header />
 
-        {/* Search Bar with gradient */}
         <LinearGradient
           colors={COLORS.primaryGradient}
           start={{ x: 0, y: 0 }}
@@ -1185,7 +1133,6 @@ const Game = ({ navigation }) => {
           </View>
         </LinearGradient>
 
-        {/* Fixed Tabs */}
         <View style={styles.tabsContainer}>
           <TabButton
             title="My Games"
@@ -1207,7 +1154,6 @@ const Game = ({ navigation }) => {
           />
         </View>
 
-        {/* Scrollable content */}
         <FlatList
           data={getFilteredGames()}
           renderItem={renderGameCard}
@@ -1246,7 +1192,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   
-  // Loader Styles
   loaderContainer: {
     flex: 1,
     alignItems: 'center',
@@ -1315,7 +1260,6 @@ const styles = StyleSheet.create({
     color: '#333',
   },
 
-  // Rest of your existing styles remain the same
   flatList: {
     flex: 1,
   },
@@ -1859,5 +1803,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-
-

@@ -46,6 +46,7 @@ const SplashScreen = ({ navigation }) => {
         onEnd={onVideoEnd}
         onError={onVideoError}
         onLoad={onVideoLoad}
+        volume={0.7}
         paused={false}
         repeat={false}
         muted={true} // Keep video muted
@@ -69,7 +70,7 @@ const SplashScreen = ({ navigation }) => {
         paused={false}
         repeat={false} // Set to true if you want music to loop
         muted={false}
-        volume={1.0} // Adjust volume (0.0 to 1.0)
+        volume={0.05} // Adjust volume (0.0 to 1.0)
         audioOnly={true} // This makes it an audio-only player
         playInBackground={true} // Allow audio to play in background
         playWhenInactive={true}

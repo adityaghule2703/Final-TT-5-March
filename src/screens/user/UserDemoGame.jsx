@@ -208,18 +208,18 @@ const DEMO_PATTERNS = [
     popular_rank: "Regular",
     category: "new_age"
   },
-  {
-    id: 28,
-    pattern_name: "non_claimers",
-    display_name: "Non Claimers",
-    description: "Non claimers get a chance to apply for full house",
-    logic_type: "all_numbers",
-    positions: [],
-    example: "Complete the pattern on your ticket to win.",
-    how_to_win: "Mark all required numbers on a single ticket.",
-    popular_rank: "Regular",
-    category: "other"
-  },
+  // {
+  //   id: 28,
+  //   pattern_name: "non_claimers",
+  //   display_name: "Non Claimers",
+  //   description: "Non claimers get a chance to apply for full house",
+  //   logic_type: "all_numbers",
+  //   positions: [],
+  //   example: "Complete the pattern on your ticket to win.",
+  //   how_to_win: "Mark all required numbers on a single ticket.",
+  //   popular_rank: "Regular",
+  //   category: "other"
+  // },
   {
     id: 41,
     pattern_name: "old_age",
